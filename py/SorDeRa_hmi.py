@@ -15,19 +15,28 @@ import xmlrpclib as xml
 import random
 import SorDeRa_sdr as logic
 
-
 REAL = True
 
-maxpts_enable 	= True
-maxdecay_enable = True
+maxpts_enable 	= False
+maxdecay_enable = False
 azoom_enable 	= True
-fftfill_enable	= True
-detect_enable	= True
+fftfill_enable	= False
+detect_enable	= False
 
-# Window
-ANCHO       = 1280
-ALTO        = 600
-SCREEN_SIZE = (ANCHO, ALTO)
+# Cabecera
+TOPANCHO	= 1280
+TOPALTO		= 50
+TOP_SIZE	= (TOPANCHO,TOPALTO)
+
+# Main Window
+ANCHO		= 1280
+ALTO		= 600
+MAIN_SIZE	= (ANCHO,ALTO)
+
+# FFT Window
+FFTANCHO    = 1280
+FFTALTO     = 500
+FFT_SIZE 	= (FFTANCHO, FFTALTO)
 CAPTION     = "SorDeRa SDR  fps: "
 FPS 		= 30
 
@@ -45,6 +54,8 @@ DEVCOLORHZ  = (200, 80, 80)
 ESCCOLOR	= (20, 20, 100)
 FONT = "Arial"
 ftbw = ftdev1 = ftdev2 = ftqc = ""
+fft_sf	= ""
+top_sf = ""
 
 # Network
 ADDR_FFT = ('127.0.0.1',42421)
@@ -62,7 +73,7 @@ bw 		= 3150
 bwlabel = 0		#surface
 
 # FQ and DEV
-xdev 	= ANCHO/2
+xdev 	= FFTANCHO/2
 dev 	= 0
 fq 			= 130870000		
 fqc 		= 130870000		# SDR params in Khz
@@ -81,10 +92,10 @@ dtc 	 = []	# Detect
 DTCTHRES = 1.15 # Threshold
 
 # BASE & AUTOZOOM
-azoom  = 10
+azoom  = 3
 MAXZOOM = 30
 base  = 0
-tope  = ALTO
+tope  = FFTALTO
 YTOP  = 100
 
 SALIDA = False
@@ -114,16 +125,16 @@ def FFT_frame(sock,sf):
 		py[pydx][x] =  t 	# Almaceno dBs	
 
 	t = 0.0
-	t2 = ALTO
+	t2 = FFTALTO
 	for x in range(VEC_SZ):
 		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
 		t /= fft_media
 
-		posy = ALTO-(t*azoom)-(base*azoom)
+		posy = FFTALTO-(t*azoom)-(base*azoom)
 
 		dtcm +=  posy / VEC_SZ 							# media para el detect (grafico)
 
-		if posy>ALTO : base += 1 						# AUTOBASE
+		if posy>FFTALTO : base += 1 						# AUTOBASE
 		if posy<t2   : t2 = posy 						# tope superior para calcular zoom
 		pts += [(x,m.trunc( posy ))]					# compone vector draw
 
@@ -153,7 +164,7 @@ def FFT_frame(sock,sf):
 		if t2<(YTOP*0.95) : 
 			if azoom>1: azoom -= 0.05
 
-	pts += [(ANCHO+1,ALTO+1),(0,ALTO+1)]			#cierro para fill
+	pts += [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]			#cierro para fill
 	pydx = (pydx+1) % fft_media
 
 
@@ -163,8 +174,8 @@ def calc_dev(sf):
 	global  fqlabel1,fqlabel2
 	global 	refrescar
 
-	a = ANCHO/2											# media pantalla
-	dev = (xdev-a) * (SAMPLERATE/ANCHO)
+	a = FFTANCHO/2											# media pantalla
+	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
 	fq = m.trunc(fqc + dev)
 	sfq = str(fq)
 	fqlabel1 = ftdev1.render(sfq[:3]+'.'+sfq[3:6], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
@@ -180,20 +191,20 @@ def calc_bw(sf):
 	global ftbw
 	global refrescar
 
-	a = ANCHO/2 											# media pantalla
-	bw = m.trunc((SAMPLERATE*xbw)/ANCHO)
+	a = FFTANCHO/2 											# media pantalla
+	bw = m.trunc((SAMPLERATE*xbw)/FFTANCHO)
 	if (bw > DECIRATE/2):
 		bw = DECIRATE/2
 	if (bw < MINBW):
 		bw = MINBW
-	xbw = bw / (SAMPLERATE/ANCHO)
+	xbw = bw / (SAMPLERATE/FFTANCHO)
 	txt = str(bw)
 	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
 	refrescar = True
 	sdr.set_bw(bw)									# set bw
 
 
-def attend_mouse(xm,sf):
+def attend_mouse(sf):
 	global xbw,xdev
 	global SALIDA
 
@@ -214,16 +225,20 @@ def attend_mouse(xm,sf):
 				continue
 
 
-def pantalla_init(xm):
+def pantalla_init():
 	global bw, fq
 	global bwlabel, fqlabel
 	global ftbw,ftdev1,ftdev2,ftqc
+	global fft_sf, top_sf
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
-	pg.display.set_mode(SCREEN_SIZE)
+	pg.display.set_mode(MAIN_SIZE)
 	sf = pg.display.get_surface()
 	sf.fill(BGCOLOR)
+
+	fft_sf= pg.Surface((FFT_SIZE),pg.HWSURFACE,8)
+	top_sf= pg.Surface((TOP_SIZE),pg.HWSURFACE,8)
 
 	ftdev1 = pg.font.SysFont(FONT,18)						
 	ftdev2 = pg.font.SysFont(FONT,16)						
@@ -244,8 +259,9 @@ def pantalla_refresh(sf):
 	global ftqc
 	global maxfill_enable, maxpts_enable, refrescar
 	global azoom, base
+	global fft_sf,top_sf
 
-	a = ANCHO/2 										# media pantalla
+	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
 
 	if refrescar:
@@ -255,16 +271,16 @@ def pantalla_refresh(sf):
 
 	k1=15	# Pixels por 10dB
 	for x in range(12):										# Escala FFT
-		y = ALTO - base - m.trunc( azoom*x*k1 )
-		pgd.hline(sf,0,ANCHO,y,ESCCOLOR)
+		y = FFTALTO - base - m.trunc( azoom*x*k1 )
+		pgd.hline(sf,0,FFTANCHO,y,ESCCOLOR)
 		lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
 		pg.Surface.blit(sf, lb, (0,y-10))	# Pinta fq label
 
-	sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,ALTO-BWY),0) 			# Pinta BW
-	pgd.rectangle(sf,(xdev-xbw,BWY,xbw*2,ALTO-BWY),BWCOLOR)
-	pgd.vline(sf,xdev,0,ALTO,DEVCOLOR)							# Pinta dev
+	sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
+	pgd.rectangle(sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
+	pgd.vline(sf,xdev,0,FFTALTO,DEVCOLOR)							# Pinta dev
 	if fftfill_enable:											# Pintta FFT relleno (Más rápido que el fill)
-		for x in pts: pgd.vline(sf,x[0],x[1],ALTO,FILLCOLOR)				
+		for x in pts: pgd.vline(sf,x[0],x[1],FFTALTO,FILLCOLOR)				
 
 	pgd.polygon(sf,pts,FGCOLOR)									# pinta FFT
 
@@ -280,39 +296,14 @@ def pantalla_refresh(sf):
 	if refrescar:
 		pg.Surface.blit(sf, fqlabel1, (xdev-pleft,BWY-22))					# Pinta dev label 
 		pg.Surface.blit(sf, fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
+
 		txt = str(fqc)
 		fqclabel = ftqc.render(txt[:3]+'.'+txt[3:6]+','+txt[6:], 0, FQCCOLOR,BGCOLOR)	# pinta fqc text
 		pleft = fqclabel.get_size()[0]/2
-		pg.Surface.blit(sf, fqclabel, (ANCHO/2-pleft,2))	# Pinta fq label
+		#pg.Surface.blit(sf, fqclabel, (FFTANCHO/2-pleft,2))	# Pinta fq label
+		top_sf.blit(fqclabel,(TOPANCHO/2-pleft,TOPALTO/2-12))	# Pinta fq label
 
-
-	pg.display.flip()
-	apts = pts
-
-
-def old_pantalla_refresh(sf):
-	global pts,apts
-	global xbw,xdev
-	global fq,fqc,bw
-	global bwlabel,fqlabel1,fqlabel2
-	global ftqc
-	a = ANCHO/2 										# media pantalla
-	pg.draw.lines(sf,BGCOLOR,False,apts,1)					# borra FFT
-	pg.draw.rect(sf,BWCOLOR2,(xdev-xbw,BWY,xbw*2,ALTO-BWY))	# pinta BW
-	pg.draw.rect(sf,BWCOLOR,(xdev-xbw,BWY,xbw*2,ALTO-BWY),2)
-	pg.draw.line(sf,DEVCOLOR,[xdev,0],[xdev,ALTO],1)		# pinta dev
-	#pts += [(ANCHO,ALTO),(0,ALTO),(0,600)]
-	#pg.draw.polygon(sf,MAXCOLOR,pts,0)					# pinta FFT relleno
-	pg.draw.lines(sf,FGCOLOR,False,pts,1)					# pinta FFT
-	#pg.draw.lines(sf,MAXCOLOR,False,MAX,1)					# pinta MAX
-	pg.Surface.blit(sf, bwlabel, (xdev-bwlabel.get_size()[0]/2,BWY+2))	# Pinta bw label
-	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 		# Pinta dev label
-	pg.Surface.blit(sf, fqlabel1, (xdev-pleft,BWY-22))					# 
-	pg.Surface.blit(sf, fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
-	txt = str(fqc)
-	fqclabel = ftqc.render(txt[:3]+'.'+txt[3:6]+','+txt[6:], 0, FQCCOLOR,BGCOLOR)	# pinta fqc text
-	pleft = fqclabel.get_size()[0]/2
-	pg.Surface.blit(sf, fqclabel, (ANCHO/2-pleft,2))	# Pinta fq label
+	pg.Surface.blit(sf,top_sf,(0,FFTALTO))
 	pg.display.flip()
 	apts = pts
 
@@ -327,7 +318,7 @@ if __name__ == "__main__":
 
 	print("[+] Init")
 	py 		= [[0 for y in range(VEC_SZ)] for x in range(fft_media)]		# soften matrix
-	maxpts  = [ ALTO for y in range(VEC_SZ)]
+	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 
 	if (REAL):
 		print("[+] Arrancando logica")
@@ -338,23 +329,23 @@ if __name__ == "__main__":
 		sdr.set_freq(fq)
 		sdr.set_bw(bw)
 		sdr.set_dev(-dev)
-		#xdev = dev-(ANCHO/2) / (SAMPLERATE/ANCHO)
-		xdev = (ANCHO/2)
+		#xdev = dev-(FFTANCHO/2) / (SAMPLERATE/FFTANCHO)
+		xdev = (FFTANCHO/2)
 
 		print("[+] Abriendo socket fft")
 		soc = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 		soc.bind(ADDR_FFT)
 
 	print("[+] Generando ventana")
-	sf = pantalla_init(xm)
+	sf = pantalla_init()
 
 	print("[+] Entrando a bucle principal")
 	refrescar = True
 	while not SALIDA:
 		clk.tick(FPS)
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
-		attend_mouse(xm,sf)
-		FFT_frame(soc,sf)
+		attend_mouse(fft_sf)
+		FFT_frame(soc,fft_sf)
 		pantalla_refresh(sf)
 
 	print("[+] Saliendo")
