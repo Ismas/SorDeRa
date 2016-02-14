@@ -1,0 +1,26 @@
+20160208:
+	Configurado el GRC para la aplicación, sin wiches
+	Cambio de puertos a cliente UDP
+	Funcionamiento GRC y GUI completamente independiente
+	Modos visuales de relleno
+	Suavizado de FFT
+	Otros
+
+20160210:
+	Reorganizado el sistema de eventos
+	Reorganización del código
+	Corregido calculo de bw y dev
+	Etiqueta dev dos tamaños
+	Prueba etiqueta freq central
+	Activa lectura y escritura del xmlrpc
+	Salida limpia
+	Otros
+
+20160211:
+	Reorganizacion render textos 
+	Prueba extraccion parametros a otro fichero - abortado
+	Autozoom - Zoom in ok, zoom out imcompleto
+
+20160212:
+	Optimizaciones gráficas, paso a gfxdraw
+	Escala de fondo de FFT
