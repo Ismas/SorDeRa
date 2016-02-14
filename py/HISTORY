@@ -24,3 +24,12 @@
 20160212:
 	Optimizaciones gráficas, paso a gfxdraw
 	Escala de fondo de FFT
+
+20160214:
+	Creado git
+	Importado la logica en el hmi. 
+	Eliminado el xmlrpc
+	Nueva autobase autozoom
+	Nuevo fondo
+	Nuevo max fft con caida o sin ella
+	Nuevo detector de picos

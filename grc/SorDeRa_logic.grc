@@ -1,11 +1,70 @@
 <?xml version='1.0' encoding='ASCII'?>
 <flow_graph>
-  <timestamp>Sun Feb 14 15:02:37 2016</timestamp>
+  <timestamp>Sun Feb 14 15:55:21 2016</timestamp>
+  <block>
+    <key>options</key>
+    <param>
+      <key>id</key>
+      <value>SorDeRa_sdr</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>title</key>
+      <value>RX logic</value>
+    </param>
+    <param>
+      <key>author</key>
+      <value>Ismas</value>
+    </param>
+    <param>
+      <key>description</key>
+      <value>A sensible SDR receiver</value>
+    </param>
+    <param>
+      <key>window_size</key>
+      <value>3000 ,1024</value>
+    </param>
+    <param>
+      <key>generate_options</key>
+      <value>wx_gui</value>
+    </param>
+    <param>
+      <key>category</key>
+      <value>Custom</value>
+    </param>
+    <param>
+      <key>run_options</key>
+      <value>prompt</value>
+    </param>
+    <param>
+      <key>run</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>max_nouts</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>realtime_scheduling</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(10, 10)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
   <block>
     <key>variable</key>
     <param>
       <key>id</key>
-      <value>amfm</value>
+      <value>dev</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -13,11 +72,11 @@
     </param>
     <param>
       <key>value</key>
-      <value>1</value>
+      <value>19000</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(882, 16)</value>
+      <value>(719, 18)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -51,30 +110,7 @@
     <key>variable</key>
     <param>
       <key>id</key>
-      <value>sq</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>-70</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(939, 15)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>id</key>
-      <value>batido</value>
+      <value>VEC</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -82,103 +118,11 @@
     </param>
     <param>
       <key>value</key>
-      <value>0</value>
+      <value>1280</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(352, 9)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>id</key>
-      <value>bw</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>3200</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(813, 17)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>id</key>
-      <value>dev</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>20235</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(719, 18)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>id</key>
-      <value>rec</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(281, 8)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>id</key>
-      <value>decimation</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>20</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(174, 10)</value>
+      <value>(351, 73)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -212,7 +156,7 @@
     <key>variable</key>
     <param>
       <key>id</key>
-      <value>VEC</value>
+      <value>decimation</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -220,11 +164,126 @@
     </param>
     <param>
       <key>value</key>
-      <value>1280</value>
+      <value>20</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(351, 73)</value>
+      <value>(174, 10)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>id</key>
+      <value>rec</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(281, 8)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>id</key>
+      <value>bw</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>3200</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(813, 17)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>id</key>
+      <value>batido</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(352, 9)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>id</key>
+      <value>sq</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>-70</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(939, 15)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>id</key>
+      <value>amfm</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(882, 16)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1324,33 +1383,6 @@
     </param>
   </block>
   <block>
-    <key>xmlrpc_server</key>
-    <param>
-      <key>id</key>
-      <value>xmlrpc_server_0</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>addr</key>
-      <value>localhost</value>
-    </param>
-    <param>
-      <key>port</key>
-      <value>42423</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(455, 27)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
     <key>blocks_udp_sink</key>
     <param>
       <key>id</key>
@@ -1547,58 +1579,26 @@
     </param>
   </block>
   <block>
-    <key>options</key>
+    <key>xmlrpc_server</key>
     <param>
       <key>id</key>
-      <value>SorDeRa_sdr</value>
+      <value>xmlrpc_server_0</value>
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
-      <key>title</key>
-      <value>RX logic</value>
+      <key>addr</key>
+      <value>localhost</value>
     </param>
     <param>
-      <key>author</key>
-      <value>Ismas</value>
-    </param>
-    <param>
-      <key>description</key>
-      <value>A sensible SDR receiver</value>
-    </param>
-    <param>
-      <key>window_size</key>
-      <value>3000 ,1024</value>
-    </param>
-    <param>
-      <key>generate_options</key>
-      <value>wx_gui</value>
-    </param>
-    <param>
-      <key>category</key>
-      <value>Custom</value>
-    </param>
-    <param>
-      <key>run_options</key>
-      <value>prompt</value>
-    </param>
-    <param>
-      <key>run</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>max_nouts</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>realtime_scheduling</key>
-      <value></value>
+      <key>port</key>
+      <value>42423</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(10, 10)</value>
+      <value>(455, 27)</value>
     </param>
     <param>
       <key>_rotation</key>

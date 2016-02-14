@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Sun Feb 14 15:03:00 2016
+# Generated: Sun Feb 14 15:55:21 2016
 ##################################################
 
 from gnuradio import analog
@@ -20,10 +20,8 @@ from gnuradio.wxgui import forms
 from grc_gnuradio import blks2 as grc_blks2
 from grc_gnuradio import wxgui as grc_wxgui
 from optparse import OptionParser
-import SimpleXMLRPCServer
 import fcdproplus
 import math
-import threading
 import wx
 
 class SorDeRa_sdr(grc_wxgui.top_block_gui):
@@ -40,7 +38,7 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         self.samp_rate = samp_rate = 192000
         self.rec = rec = 1
         self.freq = freq = 130850000+20000
-        self.dev = dev = 20235
+        self.dev = dev = 19000
         self.decimation = decimation = 20
         self.bw = bw = 3200
         self.batido = batido = 0
@@ -73,9 +71,6 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         	proportion=1,
         )
         self.Add(_sq_sizer)
-        self.xmlrpc_server_0 = SimpleXMLRPCServer.SimpleXMLRPCServer(("localhost", 42423), allow_none=True)
-        self.xmlrpc_server_0.register_instance(self)
-        threading.Thread(target=self.xmlrpc_server_0.serve_forever).start()
         self.low_pass_filter_0 = filter.fir_filter_ccf(decimation, firdes.low_pass(
         	1, samp_rate, bw, 1000, firdes.WIN_HAMMING, 6.76))
         self.fft_vxx_0 = fft.fft_vcc(VEC, True, (window.blackmanharris(1024)), True, 1)
