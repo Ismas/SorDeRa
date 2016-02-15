@@ -60,7 +60,7 @@ top_sf = ""
 # Network
 ADDR_FFT = ('127.0.0.1',42421)
 URL_RPC  = 'http://localhost:42423'
-VEC_SZ   = 1280
+VEC_SZ   = FFTANCHO
 
 # FFT
 POSY = 300
@@ -324,12 +324,14 @@ if __name__ == "__main__":
 	if (REAL):
 		print("[+] Arrancando logica")
 		sdr = logic.SorDeRa_sdr()
-		sdr.Start(True)
+		sdr.set_VEC = VEC_SZ
 
 		print("[+] Estableciendo valores")
 		sdr.set_freq(fq)
 		sdr.set_bw(bw)
 		sdr.set_dev(-dev)
+		sdr.Start(True)
+
 		#xdev = dev-(FFTANCHO/2) / (SAMPLERATE/FFTANCHO)
 		xdev = (FFTANCHO/2)
 
