@@ -233,17 +233,17 @@ def pantalla_init():
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
-	pg.display.set_mode(MAIN_SIZE)
+	pg.display.set_mode(MAIN_SIZE,pg.DOUBLEBUF,8)
 	sf = pg.display.get_surface()
 	sf.fill(BGCOLOR)
 
-	fft_sf= pg.Surface((FFT_SIZE),pg.HWSURFACE,8)
-	top_sf= pg.Surface((TOP_SIZE),pg.HWSURFACE,8)
+	fft_sf= pg.Surface((FFT_SIZE),0,8)
+	top_sf= pg.Surface((TOP_SIZE),0,8)
 
 	ftdev1 = pg.font.SysFont(FONT,18)						
 	ftdev2 = pg.font.SysFont(FONT,16)						
 	ftbw   = pg.font.SysFont(FONT,16)						
-	ftqc   = pg.font.SysFont(FONT,24)						
+	ftqc   = pg.font.SysFont(FONT,48)						
 
 	calc_dev(sf)
 	calc_bw(sf)
@@ -265,45 +265,46 @@ def pantalla_refresh(sf):
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
 
 	if refrescar:
-		sf.fill(BGCOLOR) 										# Borra BW
+		fft_sf.fill(BGCOLOR) 										# Borra BW
 	else:
-		pgd.polygon(sf,apts,BGCOLOR)							# Borra FFT
+		pgd.polygon(fft_sf,apts,BGCOLOR)							# Borra FFT
 
 	k1=15	# Pixels por 10dB
 	for x in range(12):										# Escala FFT
 		y = FFTALTO - base - m.trunc( azoom*x*k1 )
-		pgd.hline(sf,0,FFTANCHO,y,ESCCOLOR)
+		pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
 		lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
-		pg.Surface.blit(sf, lb, (0,y-10))	# Pinta fq label
+		fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
-	sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
-	pgd.rectangle(sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(sf,xdev,0,FFTALTO,DEVCOLOR)							# Pinta dev
+	fft_sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
+	pgd.rectangle(fft_sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
+	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)							# Pinta dev
 	if fftfill_enable:											# Pintta FFT relleno (Más rápido que el fill)
-		for x in pts: pgd.vline(sf,x[0],x[1],FFTALTO,FILLCOLOR)				
+		for x in pts: pgd.vline(fft_sf,x[0],x[1],FFTALTO,FILLCOLOR)				
 
-	pgd.polygon(sf,pts,FGCOLOR)									# pinta FFT
+	pgd.polygon(fft_sf,pts,FGCOLOR)									# pinta FFT
 
 	if maxpts_enable:											# Pintta puntos de max
 		for x in range(VEC_SZ) : 
-			pgd.pixel(sf,x,maxpts[x],MAXCOLOR)				
+			pgd.pixel(fft_sf,x,maxpts[x],MAXCOLOR)				
 
 	if detect_enable :
 		for x in dtc :
-			pgd.circle(sf,x[0],x[1],10,MAXCOLOR)
+			pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
 
-	pg.Surface.blit(sf, bwlabel, (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
+	fft_sf.blit(bwlabel, (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
 	if refrescar:
-		pg.Surface.blit(sf, fqlabel1, (xdev-pleft,BWY-22))					# Pinta dev label 
-		pg.Surface.blit(sf, fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
+		fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))					# Pinta dev label 
+		fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 
 		txt = str(fqc)
 		fqclabel = ftqc.render(txt[:3]+'.'+txt[3:6]+','+txt[6:], 0, FQCCOLOR,BGCOLOR)	# pinta fqc text
 		pleft = fqclabel.get_size()[0]/2
 		#pg.Surface.blit(sf, fqclabel, (FFTANCHO/2-pleft,2))	# Pinta fq label
-		top_sf.blit(fqclabel,(TOPANCHO/2-pleft,TOPALTO/2-12))	# Pinta fq label
+		top_sf.blit(fqclabel,(TOPANCHO/2-pleft,TOPALTO/2-23))	# Pinta fq label
 
-	pg.Surface.blit(sf,top_sf,(0,FFTALTO))
+	pg.Surface.blit(sf,top_sf,(0,0))
+	pg.Surface.blit(sf,fft_sf,(0,TOPALTO))
 	pg.display.flip()
 	apts = pts
 
