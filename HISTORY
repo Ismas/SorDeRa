@@ -1,0 +1,49 @@
+20160208:
+	Configurado el GRC para la aplicación, sin wiches
+	Cambio de puertos a cliente UDP
+	Funcionamiento GRC y GUI completamente independiente
+	Modos visuales de relleno
+	Suavizado de FFT
+	Otros
+
+20160210:
+	Reorganizado el sistema de eventos
+	Reorganización del código
+	Corregido calculo de bw y dev
+	Etiqueta dev dos tamaños
+	Prueba etiqueta freq central
+	Activa lectura y escritura del xmlrpc
+	Salida limpia
+	Otros
+
+20160211:
+	Reorganizacion render textos 
+	Prueba extraccion parametros a otro fichero - abortado
+	Autozoom - Zoom in ok, zoom out imcompleto
+
+20160212:
+	Optimizaciones gráficas, paso a gfxdraw
+	Escala de fondo de FFT
+
+20160214:
+	Creado git
+	Importado la logica en el hmi. 
+	Eliminado el xmlrpc
+	Nueva autobase autozoom
+	Nuevo fondo
+	Nuevo max fft con caida o sin ella
+	Nuevo detector de picos
+	Prueba distintas surfaces. Funciona, pero más lento (~70 FPS)
+
+20160215:
+	Tras pruebas creada branch monosurface, master es multisurface
+	Solucionada velocidad multisurface con subsurfaces  (>100 FPS)
+	Frecuencimetro completamente funcional de bello color
+	BUG - xdev erroneo
+
+20160217:
+	Solucionado bug xdev - 
+	Frequencimetro de 10 cifras
+	Squelch semifuncional - falta sincronizarlo con lo visual.
+
+	

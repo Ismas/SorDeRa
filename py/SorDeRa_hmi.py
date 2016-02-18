@@ -47,12 +47,14 @@ FILLCOLOR   = (50, 50, 12)
 MAXCOLOR    = (255, 150, 150)
 BWCOLOR     = (200, 0, 0)
 BWCOLOR2    = (50, 0, 0)
-FQCCOLOR  	= (50, 150, 50)
+FQCCOLOR  	= (150, 150, 250)
+BGFQCCOLOR 	= (60, 60, 60)
 DEVCOLOR  	= (150, 0, 150)
 DEVCOLORMHZ = (220, 0, 220)
 DEVCOLORHZ  = (200, 80, 80)
 ESCCOLOR	= (20, 20, 100)
-FONT = "Arial"
+SQCOLOR	= (80, 0, 0)
+FONT = "arial"
 ftbw = ftdev1 = ftdev2 = ftqc = ""
 fft_sf	= ""
 top_sf = ""
@@ -65,7 +67,8 @@ VEC_SZ   = FFTANCHO
 # FFT
 POSY = 300
 BWY  = 100
-apts = pts = [(0,0),(0,0),(0,0),(0,0)]
+pts = [(0,0),(0,0),(0,0),(0,0)]
+#apts = pts
 
 # BW
 xbw 	= 23
@@ -75,14 +78,18 @@ bwlabel = 0		#surface
 # FQ and DEV
 xdev 	= FFTANCHO/2
 dev 	= 0
+sq 		= -100
 fq 			= 130870000		
 fqc 		= 130870000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
 SAMPLERATE 	= 192000
 DECIRATE	= 9600
 MINBW		= 150
+MAXF 		= 1999999999
+MINF		= 150000
 fqlabel1    = fqlabel2 = ""
 
+numx	= []
 py 		= []	# valores puntos
 pydx 	= 0		# indice matriz para media
 maxpts  = []	# maximos
@@ -98,6 +105,7 @@ base  = 0
 tope  = FFTALTO
 YTOP  = 100
 
+
 SALIDA = False
 
 def FFT_frame(sock,sf):
@@ -106,6 +114,7 @@ def FFT_frame(sock,sf):
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
 	global dtc,detect_enable
+	global refrescar
 
 	pts 	= []
 	y 		= []
@@ -126,20 +135,22 @@ def FFT_frame(sock,sf):
 
 	t = 0.0
 	t2 = FFTALTO
+	#if mediac < fft_media: mediac += 1
 	for x in range(VEC_SZ):
 		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
 		t /= fft_media
 
-		posy = FFTALTO-(t*azoom)-(base*azoom)
-
+		posy = FFTALTO-(t*azoom)-(base*azoom)			# Altura en el FFT
 		dtcm +=  posy / VEC_SZ 							# media para el detect (grafico)
 
-		if posy>FFTALTO : base += 1 						# AUTOBASE
-		if posy<t2   : t2 = posy 						# tope superior para calcular zoom
+		if posy>FFTALTO : 
+			base += 1 									# AUTOBASE
+			refrescar = True
+		if posy<t2  : t2 = posy 						# tope superior para calcular zoom
 		pts += [(x,m.trunc( posy ))]					# compone vector draw
 
 		if m.trunc(posy) < maxpts[x] :	
-			maxpts[x] = m.trunc(posy)		# Calcula max
+			maxpts[x] = m.trunc(posy)					# Calcula max
 		else :
 			if maxdecay_enable: maxpts[x] += 1
 
@@ -160,15 +171,20 @@ def FFT_frame(sock,sf):
 
 	if azoom_enable :
 		if t2>(YTOP*1.05) : 
-			if (azoom<MAXZOOM): azoom += 0.05       # AUTOZOOM con 5% de histeresis
+			if (azoom<MAXZOOM): 
+				azoom += 0.05       # AUTOZOOM con 5% de histeresis
+				refrescar = True
 		if t2<(YTOP*0.95) : 
-			if azoom>1: azoom -= 0.05
+			if azoom>1: 
+				azoom -= 0.05
+				refrescar = True
+
 
 	pts += [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]			#cierro para fill
 	pydx = (pydx+1) % fft_media
 
 
-def calc_dev(sf):
+def calc_dev():
 	global	xdev,dev
 	global	fq,fqc,afq
 	global  fqlabel1,fqlabel2
@@ -177,14 +193,15 @@ def calc_dev(sf):
 	a = FFTANCHO/2											# media pantalla
 	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
 	fq = m.trunc(fqc + dev)
-	sfq = str(fq)
-	fqlabel1 = ftdev1.render(sfq[:3]+'.'+sfq[3:6], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
-	fqlabel2 = ftdev2.render(sfq[6:9], 0, DEVCOLORHZ,BGCOLOR)
-	refrescar = True
+	sfq = format(fq,'010d')
+	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
+	sfq = sfq.lstrip('0.')
+	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
+	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
 	sdr.set_dev(m.trunc(-dev))	# set dev
 
 
-def calc_bw(sf):
+def calc_bw():
 	global xbw,bw
 	global bwlabel
 	global DECIRATE,MINBW
@@ -200,8 +217,42 @@ def calc_bw(sf):
 	xbw = bw / (SAMPLERATE/FFTANCHO)
 	txt = str(bw)
 	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
-	refrescar = True
 	sdr.set_bw(bw)									# set bw
+
+
+def calc_freq(posx,posy):
+	global fqc
+	global numx
+	global sdr
+	global refrescar
+	global mediac
+
+	sp 	 = 4
+	size = 24
+	inc  = 1
+	if posy > TOPALTO/2: inc = -1 	# Calcula incremento o decremento
+
+	i = 9;
+	for x in numx:
+		if (posx >= x) and (posx <= x+size) : fqc += inc * (10**i) # Click sobre los numeros			
+		i -= 1
+
+	if fqc > MAXF : fqc = MAXF 	# Limites
+	if fqc < MINF : fqc = MINF
+	sdr.set_freq(fqc)
+
+	calc_dev()			# Esto afecta al indicador de desviacion
+	mediac = 0 			# reinicia suavizado
+
+	refrescar = True
+
+def calc_sq(posy):
+	global sq,sdr
+
+	sq = -120*posy / FFTALTO
+	if sq < -120 : sq = 120
+	if sq > 0 	 : sq = 0
+	sdr.set_sq(sq)
 
 
 def attend_mouse(sf):
@@ -215,13 +266,20 @@ def attend_mouse(sf):
 			continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 1) or 
 			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :
-			if (evt.pos[1] > BWY):
-				xbw = m.fabs(pg.mouse.get_pos()[0]-xdev)			# distancia al dev
-				calc_bw(sf)
+			if m.fabs(evt.pos[0] - FFTANCHO) < 20 :					# Si xestá en los ´ultimos 20 pixels
+				calc_sq(evt.pos[1])
 				continue
-			if (evt.pos[1] < BWY):
+			if (evt.pos[1] > TOPALTO+BWY):
+				xbw = m.fabs(pg.mouse.get_pos()[0]-xdev)			# distancia al dev
+				calc_bw()
+				continue
+			if (evt.pos[1] > TOPALTO):
 				xdev = pg.mouse.get_pos()[0]
-				calc_dev(sf)
+				calc_dev()
+				continue
+			# Va a ser freq
+			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1:
+				calc_freq(evt.pos[0],evt.pos[1])
 				continue
 
 
@@ -233,20 +291,25 @@ def pantalla_init():
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
-	pg.display.set_mode(MAIN_SIZE,pg.DOUBLEBUF,8)
+	pg.display.set_mode(MAIN_SIZE)
+	#print(pg.display.Info())
 	sf = pg.display.get_surface()
 	sf.fill(BGCOLOR)
 
-	fft_sf= pg.Surface((FFT_SIZE),0,8)
-	top_sf= pg.Surface((TOP_SIZE),0,8)
+	# Surfaces TOP & FFT (subsurfaces del main)
+	top_sf= sf.subsurface((0,0,TOPANCHO,TOPALTO))		
+	fft_sf= sf.subsurface((0,TOPALTO,FFTANCHO,FFTALTO))
+
+	#print(pg.font.get_fonts())
 
 	ftdev1 = pg.font.SysFont(FONT,18)						
 	ftdev2 = pg.font.SysFont(FONT,16)						
 	ftbw   = pg.font.SysFont(FONT,16)						
-	ftqc   = pg.font.SysFont(FONT,48)						
+	ftqc   = pg.font.SysFont('ubuntumono',48)						
 
-	calc_dev(sf)
-	calc_bw(sf)
+	calc_dev()
+	calc_bw()
+	calc_freq(0,0)
 
 	return sf
 
@@ -256,57 +319,70 @@ def pantalla_refresh(sf):
 	global xbw,xdev
 	global fq,fqc,bw
 	global bwlabel,fqlabel1,fqlabel2
-	global ftqc
+	global ftqc, numx
 	global maxfill_enable, maxpts_enable, refrescar
 	global azoom, base
 	global fft_sf,top_sf
+	global sq
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
 
-	if refrescar:
-		fft_sf.fill(BGCOLOR) 										# Borra BW
-	else:
-		pgd.polygon(fft_sf,apts,BGCOLOR)							# Borra FFT
+	fft_sf.fill(BGCOLOR) 									# Borra BW Más rapido que reescribir.
 
-	k1=15	# Pixels por 10dB
+	k1=15	# Pixels por 10dB TODO AJUSTAR ESTO
 	for x in range(12):										# Escala FFT
 		y = FFTALTO - base - m.trunc( azoom*x*k1 )
 		pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
 		lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
 		fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
-	fft_sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
+	fft_sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 		# Pinta BW
 	pgd.rectangle(fft_sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)							# Pinta dev
-	if fftfill_enable:											# Pintta FFT relleno (Más rápido que el fill)
+	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)						# Pinta dev
+	if fftfill_enable:												# Pintta FFT relleno (Más rápido que el fill)
 		for x in pts: pgd.vline(fft_sf,x[0],x[1],FFTALTO,FILLCOLOR)				
-
 	pgd.polygon(fft_sf,pts,FGCOLOR)									# pinta FFT
+	if maxpts_enable:												# Pintta puntos de max
+		for x in range(VEC_SZ) : pgd.pixel(fft_sf,x,maxpts[x],MAXCOLOR)				
+	if detect_enable :												# Pinta detector picos
+		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
 
-	if maxpts_enable:											# Pintta puntos de max
-		for x in range(VEC_SZ) : 
-			pgd.pixel(fft_sf,x,maxpts[x],MAXCOLOR)				
+	fft_sf.blit(bwlabel,  (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
+	fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))						# Pinta dev label 
+	fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 
-	if detect_enable :
-		for x in dtc :
-			pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
+	# pinta Sqelch
+	sqy = FFTALTO-(120+sq)*(FFTALTO/120)-base
+	pgd.hline(fft_sf,0,FFTANCHO,sqy,SQCOLOR)
+	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
+	print(FFTANCHO-fsq.get_size()[0],sqy)
+	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],sqy-12))		# Pinta bw label
 
-	fft_sf.blit(bwlabel, (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
-	if refrescar:
-		fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))					# Pinta dev label 
-		fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
+	if refrescar:	
+		sp 	 = 4
+		size = 24
+		numx = []	# Repinta el indicador de frecuencia
+		txt = format(fqc,'010d')
+		txt = txt[:-9]+'.'+txt[-9:-6]+'.'+txt[-6:-3]+','+txt[-3:]
+		lon = len(txt)
+		anc = 0
+		for x in range(lon):
+			if txt[x] in ['.',','] : 
+				col = BGCOLOR
+				anc = size / 2
+			else :	
+				col = BGFQCCOLOR
+				anc = size
+			px = (TOPANCHO/2) - (lon+sp)*size/2 + (x*(size+sp)) 	# Calcula posición
+			fqclabel = ftqc.render(txt[x], 0, FQCCOLOR, col)		# pinta fqc text
+			top_sf.blit(fqclabel,(px,0))							# blit
+			if txt[x] not in ['.',','] : numx += [px]				# Almacena la coordenada del numero
 
-		txt = str(fqc)
-		fqclabel = ftqc.render(txt[:3]+'.'+txt[3:6]+','+txt[6:], 0, FQCCOLOR,BGCOLOR)	# pinta fqc text
-		pleft = fqclabel.get_size()[0]/2
-		#pg.Surface.blit(sf, fqclabel, (FFTANCHO/2-pleft,2))	# Pinta fq label
-		top_sf.blit(fqclabel,(TOPANCHO/2-pleft,TOPALTO/2-23))	# Pinta fq label
+	# Flipea/Vuelca la pantalla
+	pg.display.flip()							
+	refrescar = False
 
-	pg.Surface.blit(sf,top_sf,(0,0))
-	pg.Surface.blit(sf,fft_sf,(0,TOPALTO))
-	pg.display.flip()
-	apts = pts
 
 
 if __name__ == "__main__":
@@ -320,6 +396,7 @@ if __name__ == "__main__":
 	print("[+] Init")
 	py 		= [[0 for y in range(VEC_SZ)] for x in range(fft_media)]		# soften matrix
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
+	#apts    = [ (0,0) for y in range(VEC_SZ) ]
 
 	if (REAL):
 		print("[+] Arrancando logica")
@@ -330,6 +407,7 @@ if __name__ == "__main__":
 		sdr.set_freq(fq)
 		sdr.set_bw(bw)
 		sdr.set_dev(-dev)
+		sdr.set_sq(sq)
 		sdr.Start(True)
 
 		#xdev = dev-(FFTANCHO/2) / (SAMPLERATE/FFTANCHO)
@@ -347,9 +425,9 @@ if __name__ == "__main__":
 	while not SALIDA:
 		clk.tick(FPS)
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
-		attend_mouse(fft_sf)
 		FFT_frame(soc,fft_sf)
 		pantalla_refresh(sf)
+		attend_mouse(fft_sf)
 
 	print("[+] Saliendo")
 	sdr.stop()
