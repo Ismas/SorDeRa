@@ -11,9 +11,9 @@ from pygame import gfxdraw as pgd
 import socket as sk
 import struct as st
 import math as m
-import xmlrpclib as xml
 import random
 import SorDeRa_sdr as logic
+import butonify
 
 REAL = True
 
@@ -379,6 +379,10 @@ def pantalla_refresh(sf):
 			top_sf.blit(fqclabel,(px,0))							# blit
 			if txt[x] not in ['.',','] : numx += [px]				# Almacena la coordenada del numero
 
+	# PINTA MENU IF ANY
+	if mn :
+		mn.pinta()
+
 	# Flipea/Vuelca la pantalla
 	pg.display.flip()							
 	refrescar = False
@@ -420,6 +424,18 @@ if __name__ == "__main__":
 	print("[+] Generando ventana")
 	sf = pantalla_init()
 
+	bus = [("AFM N",1),("FM W",2),("AM",3),("USB",4),("LSB",5)]
+	mn = ""
+	#mn = butonify.menu(sf,bus,(50,130,220))
+	#mn.pinta()
+	pg.display.flip()
+
+	#print("PRESS USB TO EXIT")
+	#k = None
+	#while k == None or k.texto != "USB":
+	#	k = mn.selecciona()
+	#	if k != None : print(k.texto)
+
 	print("[+] Entrando a bucle principal")
 	refrescar = True
 	while not SALIDA:
@@ -427,6 +443,7 @@ if __name__ == "__main__":
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
 		FFT_frame(soc,fft_sf)
 		pantalla_refresh(sf)
+		pg.display.flip()
 		attend_mouse(fft_sf)
 
 	print("[+] Saliendo")
