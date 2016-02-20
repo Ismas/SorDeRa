@@ -25,6 +25,8 @@ class buton():
 	posy = 10
 	size = (width,height)
 	color = (100,100,100)
+	value = None
+	estado = False
 
 	def __init__(s,sf,t,c):
 		s.sf = sf
@@ -42,6 +44,15 @@ class buton():
 		s.sft = s.sff.render(s.texto, 0, (0,0,0), col)
 		s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))
 
+	def refresca(s,sel):
+		if sel:	
+			col = ( 255,255,255)
+		else: 
+			col = s.color
+		s.sf.fill(col,(s.posx+s.border/2,s.posy+s.border/2,s.width-s.border,s.height-s.border),0)
+		s.sft = s.sff.render(s.texto, 0, (0,0,0), col)
+		s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))
+
 	def borra(s,bgcol):
 		s.sf.fill(bgcol,(s.posx,s.posy,s.width,s.height),0)
 
@@ -55,9 +66,11 @@ class menu():
 	but = []
 	esp = 5 			# Pixels entre botones
 	col = (100,100,100)
+	sel = 0
+	last = None
 
 	def __init__(s,sf,b,c):
-		s.sf = sf
+		s.sf = sf 					
 		s.b = b
 		s.col = c
 
@@ -68,7 +81,9 @@ class menu():
 		for bt in s.b:
 			q = buton(s.sf,bt[0],s.col)							# Crea el boton con el texto y color del menu
 			q.posx = cx - q.width/2
-			q.posy = cy - (q.height*len(s.b))/2 + (i*q.height) + i*s.esp   
+			q.posy = cy - (q.height*len(s.b))/2 + (i*q.height) + i*s.esp  
+			q.estado = False
+			q.value = bt[1]
 			s.but += [q]										# Guarda boton
 			i += 1
 
@@ -80,19 +95,21 @@ class menu():
 		for evt in pg.event.get():
 			if (evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1) or (evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1):
 				for bt in s.but:
-					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height:
-						bt.pinta(True)
-					else:
-						bt.pinta(False)
-					pg.display.flip()
+					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height:				
+						if s.last:
+							s.last.estado = False
+							s.last.refresca(s.last.estado)
+						bt.estado = True		
+						bt.refresca(bt.estado)
+						s.last = bt
 
 			if evt.type == pg.MOUSEBUTTONUP and evt.button == 1 :
 				for bt in s.but:
-					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height:
-						bt.pinta(False)
-						pg.display.flip()
-
+					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height and bt.estado: 
 						return bt
+
+	def refresca(s):
+		for bt in s.but: bt.pinta(bt.estado)
 
 	def borra(s,bgcolor):
 		for bt in s.but: bt.borra(bgcolor)

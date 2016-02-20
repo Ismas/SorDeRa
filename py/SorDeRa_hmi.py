@@ -53,7 +53,8 @@ DEVCOLOR  	= (150, 0, 150)
 DEVCOLORMHZ = (220, 0, 220)
 DEVCOLORHZ  = (200, 80, 80)
 ESCCOLOR	= (20, 20, 100)
-SQCOLOR	= (80, 0, 0)
+SQCOLOR		= (80, 0, 0)
+MODECOLOR	= (200, 200, 50)
 FONT = "arial"
 ftbw = ftdev1 = ftdev2 = ftqc = ""
 fft_sf	= ""
@@ -78,7 +79,8 @@ bwlabel = 0		#surface
 # FQ and DEV
 xdev 	= FFTANCHO/2
 dev 	= 0
-sq 		= -100
+sq 		= -70
+xsq		= FFTALTO/2 
 fq 			= 130870000		
 fqc 		= 130870000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
@@ -89,6 +91,13 @@ MAXF 		= 1999999999
 MINF		= 150000
 fqlabel1    = fqlabel2 = ""
 
+# Mode
+mode = 1
+tmode = "AM"
+modex = 0
+modelabel = ""
+
+# FFT
 numx	= []
 py 		= []	# valores puntos
 pydx 	= 0		# indice matriz para media
@@ -105,7 +114,8 @@ base  = 0
 tope  = FFTALTO
 YTOP  = 100
 
-
+mn = None
+retf = None
 SALIDA = False
 
 def FFT_frame(sock,sf):
@@ -246,17 +256,42 @@ def calc_freq(posx,posy):
 
 	refrescar = True
 
-def calc_sq(posy):
-	global sq,sdr
 
+def calc_sq(posy):
+	global xsq,sq
+	global sdr
+
+	xsq = posy - TOPALTO
 	sq = -120*posy / FFTALTO
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
 	sdr.set_sq(sq)
 
 
+def calc_demod_ask():
+	global mn,opt
+
+	opt = None
+	bus = [("FM N",0),("FM W",2),("AM",1),("USB",4),("LSB",5)]
+	mn = ""
+	mn = butonify.menu(sf,bus,(50,130,220))
+
+
+def calc_demod_set():
+	global mn,opt
+	global modelabel
+	global sdr
+
+	print("SET MODE ",opt.texto,opt.value)
+	modelabel = ftbw.render(opt.texto, 0, MODECOLOR,BGCOLOR)
+	sdr.set_amfm(opt.value)
+	mn = None
+	opt = None
+
+
 def attend_mouse(sf):
 	global xbw,xdev
+	global retf
 	global SALIDA
 
 	for evt in pg.event.get():
@@ -266,19 +301,23 @@ def attend_mouse(sf):
 			continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 1) or 
 			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :
-			if m.fabs(evt.pos[0] - FFTANCHO) < 20 :					# Si xestá en los ´ultimos 20 pixels
-				calc_sq(evt.pos[1])
+			if m.fabs(evt.pos[0]-xdev) < 20 and m.fabs(evt.pos[1]-BWY-40) < 20 :		# Demodulator mode
+				calc_demod_ask()
+				retf = calc_demod_set
 				continue
-			if (evt.pos[1] > TOPALTO+BWY):
-				xbw = m.fabs(pg.mouse.get_pos()[0]-xdev)			# distancia al dev
+			if m.fabs(evt.pos[0] - FFTANCHO) < 50  and m.fabs(evt.pos[1]-xsq-TOPALTO) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
+				calc_sq(evt.pos[1])																# squelch
+				continue
+			if evt.pos[1] > TOPALTO+BWY :	# ancho de banda
+				xbw = m.fabs(evt.pos[0]-xdev)									# distancia al dev
 				calc_bw()
 				continue
-			if (evt.pos[1] > TOPALTO):
-				xdev = pg.mouse.get_pos()[0]
+			if (evt.pos[1] > TOPALTO):											# desviacion
+				xdev = evt.pos[0]
 				calc_dev()
 				continue
 			# Va a ser freq
-			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1:
+			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1:				# Digitos de frecuencia
 				calc_freq(evt.pos[0],evt.pos[1])
 				continue
 
@@ -307,10 +346,6 @@ def pantalla_init():
 	ftbw   = pg.font.SysFont(FONT,16)						
 	ftqc   = pg.font.SysFont('ubuntumono',48)						
 
-	calc_dev()
-	calc_bw()
-	calc_freq(0,0)
-
 	return sf
 
 
@@ -318,12 +353,12 @@ def pantalla_refresh(sf):
 	global pts,maxpts
 	global xbw,xdev
 	global fq,fqc,bw
-	global bwlabel,fqlabel1,fqlabel2
+	global modelabel,bwlabel,fqlabel1,fqlabel2
 	global ftqc, numx
 	global maxfill_enable, maxpts_enable, refrescar
 	global azoom, base
 	global fft_sf,top_sf
-	global sq
+	global sq,xsq
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
@@ -331,7 +366,7 @@ def pantalla_refresh(sf):
 	fft_sf.fill(BGCOLOR) 									# Borra BW Más rapido que reescribir.
 
 	k1=15	# Pixels por 10dB TODO AJUSTAR ESTO
-	for x in range(12):										# Escala FFT
+	for x in range(12):										# Escala FFT TODO REPARAR
 		y = FFTALTO - base - m.trunc( azoom*x*k1 )
 		pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
 		lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
@@ -340,6 +375,7 @@ def pantalla_refresh(sf):
 	fft_sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 		# Pinta BW
 	pgd.rectangle(fft_sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
 	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)						# Pinta dev
+
 	if fftfill_enable:												# Pintta FFT relleno (Más rápido que el fill)
 		for x in pts: pgd.vline(fft_sf,x[0],x[1],FFTALTO,FILLCOLOR)				
 	pgd.polygon(fft_sf,pts,FGCOLOR)									# pinta FFT
@@ -349,15 +385,14 @@ def pantalla_refresh(sf):
 		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
 
 	fft_sf.blit(bwlabel,  (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
+	fft_sf.blit(modelabel,(xdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
 	fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))						# Pinta dev label 
 	fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 
 	# pinta Sqelch
-	sqy = FFTALTO-(120+sq)*(FFTALTO/120)-base
-	pgd.hline(fft_sf,0,FFTANCHO,sqy,SQCOLOR)
+	pgd.hline(fft_sf,0,FFTANCHO,xsq,SQCOLOR)
 	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
-	print(FFTANCHO-fsq.get_size()[0],sqy)
-	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],sqy-12))		# Pinta bw label
+	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-12))		# Pinta bw label
 
 	if refrescar:	
 		sp 	 = 4
@@ -381,7 +416,7 @@ def pantalla_refresh(sf):
 
 	# PINTA MENU IF ANY
 	if mn :
-		mn.pinta()
+		mn.refresca()
 
 	# Flipea/Vuelca la pantalla
 	pg.display.flip()							
@@ -400,7 +435,6 @@ if __name__ == "__main__":
 	print("[+] Init")
 	py 		= [[0 for y in range(VEC_SZ)] for x in range(fft_media)]		# soften matrix
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
-	#apts    = [ (0,0) for y in range(VEC_SZ) ]
 
 	if (REAL):
 		print("[+] Arrancando logica")
@@ -424,17 +458,13 @@ if __name__ == "__main__":
 	print("[+] Generando ventana")
 	sf = pantalla_init()
 
-	bus = [("AFM N",1),("FM W",2),("AM",3),("USB",4),("LSB",5)]
-	mn = ""
-	#mn = butonify.menu(sf,bus,(50,130,220))
-	#mn.pinta()
-	pg.display.flip()
-
-	#print("PRESS USB TO EXIT")
-	#k = None
-	#while k == None or k.texto != "USB":
-	#	k = mn.selecciona()
-	#	if k != None : print(k.texto)
+	calc_dev()
+	calc_bw()
+	calc_freq(0,0)
+	calc_sq(FFTALTO/2)
+	opt = butonify.buton(sf,"AM",(0,0,0))
+	opt.value = 1
+	calc_demod_set()
 
 	print("[+] Entrando a bucle principal")
 	refrescar = True
@@ -443,8 +473,11 @@ if __name__ == "__main__":
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
 		FFT_frame(soc,fft_sf)
 		pantalla_refresh(sf)
-		pg.display.flip()
-		attend_mouse(fft_sf)
+		if mn :							# Gestiona menus
+			opt = mn.selecciona()
+			if opt: retf()
+		else:
+			attend_mouse(fft_sf)
 
 	print("[+] Saliendo")
 	sdr.stop()
