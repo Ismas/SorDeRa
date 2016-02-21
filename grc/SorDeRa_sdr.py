@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Wed Feb 17 20:24:48 2016  
+# Generated: Sun Feb 21 03:30:26 2016
 ##################################################
 
 from gnuradio import analog
@@ -84,7 +84,7 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         self.dc_blocker_xx_0 = filter.dc_blocker_ff(64, True)
         self.blocks_wavfile_sink_0 = blocks.wavfile_sink("/tmp/CAPTURE.WAV", 1, samp_rate/decimation, 16)
         self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, VEC)
-        self.blocks_udp_sink_0_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 42421, VEC*4, True)
+        self.blocks_udp_sink_0_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 42421, VEC*4, False)
         self.blocks_udp_sink_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 42420, 1472, True)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, VEC)
         self.blocks_rms_xx_0 = blocks.rms_cf(1)

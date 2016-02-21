@@ -108,8 +108,9 @@ dtc 	 = []	# Detect
 DTCTHRES = 1.15 # Threshold
 
 # BASE & AUTOZOOM
-azoom  = 3
-MAXZOOM = 30
+FFTK   = 8*(FFTALTO/120) 
+azoom  = 1
+MAXZOOM = 10
 base  = 0
 tope  = FFTALTO
 YTOP  = 100
@@ -118,6 +119,9 @@ mn = None
 retf = None
 SALIDA = False
 
+ma = -100
+mi = 100
+
 def FFT_frame(sock,sf):
 	global py,pydx,fft_media
 	global pts,maxpts
@@ -125,6 +129,7 @@ def FFT_frame(sock,sf):
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
 	global dtc,detect_enable
 	global refrescar
+	#global ma, mi
 
 	pts 	= []
 	y 		= []
@@ -140,23 +145,32 @@ def FFT_frame(sock,sf):
 		for x in range(VEC_SZ):	y += [ random.random() ]
 
 	for x in range(VEC_SZ):
-		t = 20*m.log10(y[x])
+		#t = 20*m.log10(y[x])
+		t = m.log10(y[x])
 		py[pydx][x] =  t 	# Almaceno dBs	
+
+		# RANGO [-10,5] -> +10 -> [0,15]
+		# 120/15 = 8 -> dBs
+		# FFTALTO/120 = 
+		#if t > ma: ma = t
+		#if t < mi: mi = t
 
 	t = 0.0
 	t2 = FFTALTO
-	#if mediac < fft_media: mediac += 1
+	t3 = 0
 	for x in range(VEC_SZ):
 		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
 		t /= fft_media
 
-		posy = FFTALTO-(t*azoom)-(base*azoom)			# Altura en el FFT
+		#posy = FFTALTO-(t*azoom)-(base*azoom)			# Altura en el FFT
+		posy = FFTALTO-(t*FFTK*azoom)-(6*FFTK*azoom)+base # Altura en el FFT
 		dtcm +=  posy / VEC_SZ 							# media para el detect (grafico)
 
 		if posy>FFTALTO : 
-			base += 1 									# AUTOBASE
-			refrescar = True
-		if posy<t2  : t2 = posy 						# tope superior para calcular zoom
+			base += 1 									# AUTOBASE cuando se sale por debajo
+		#if posy > t3 : t3 = posy						# AUTOBASE cuando no llega abajo
+
+		if posy < t2  : t2 = posy 						# tope superior para calcular zoom
 		pts += [(x,m.trunc( posy ))]					# compone vector draw
 
 		if m.trunc(posy) < maxpts[x] :	
@@ -164,6 +178,7 @@ def FFT_frame(sock,sf):
 		else :
 			if maxdecay_enable: maxpts[x] += 1
 
+	#base = t3
 	if detect_enable :	# Detect (grafico):
 		# TIPO A media movil. Si tres valores mayores que la media
 		#x = 0
@@ -182,17 +197,17 @@ def FFT_frame(sock,sf):
 	if azoom_enable :
 		if t2>(YTOP*1.05) : 
 			if (azoom<MAXZOOM): 
-				azoom += 0.05       # AUTOZOOM con 5% de histeresis
-				refrescar = True
+				azoom += 0.01       # AUTOZOOM con 5% de histeresis
+				calc_sq(xsq+TOPALTO)
 		if t2<(YTOP*0.95) : 
 			if azoom>1: 
-				azoom -= 0.05
-				refrescar = True
+				azoom -= 0.01
+				calc_sq(xsq+TOPALTO)
 
 
 	pts += [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]			#cierro para fill
 	pydx = (pydx+1) % fft_media
-
+	#print(azoom)
 
 def calc_dev():
 	global	xdev,dev
@@ -262,7 +277,8 @@ def calc_sq(posy):
 	global sdr
 
 	xsq = posy - TOPALTO
-	sq = -120*posy / FFTALTO
+	#sq =  m.trunc( (-120*xsq/FFTALTO) )
+	sq =  m.trunc( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
 	sdr.set_sq(sq)
@@ -272,9 +288,11 @@ def calc_demod_ask():
 	global mn,opt
 
 	opt = None
-	bus = [("FM N",0),("FM W",2),("AM",1),("USB",4),("LSB",5)]
+	bus = [("AUTO",10),("FM N",0),("AM",1),("FM W",2),("USB",4),("LSB",5)]
 	mn = ""
-	mn = butonify.menu(sf,bus,(50,130,220))
+	k = butonify
+	k.width = 100
+	mn = k.menu(sf,bus,(50,130,220))
 
 
 def calc_demod_set():
@@ -365,12 +383,13 @@ def pantalla_refresh(sf):
 
 	fft_sf.fill(BGCOLOR) 									# Borra BW Más rapido que reescribir.
 
-	k1=15	# Pixels por 10dB TODO AJUSTAR ESTO
-	for x in range(12):										# Escala FFT TODO REPARAR
-		y = FFTALTO - base - m.trunc( azoom*x*k1 )
-		pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
-		lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
-		fft_sf.blit(lb, (0,y-10))	# Pinta fq label
+	for x in range(12):										# Escala FFT
+	#	y = FFTALTO - base - m.trunc( azoom*x*k1 )
+		y = m.trunc(FFTALTO - (x*(FFTALTO/12))*azoom) + base
+		if (y>0):
+			pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
+			lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
+			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
 	fft_sf.fill(BWCOLOR2,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),0) 		# Pinta BW
 	pgd.rectangle(fft_sf,(xdev-xbw,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
