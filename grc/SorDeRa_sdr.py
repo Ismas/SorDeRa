@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Sun Feb 21 03:30:26 2016
+# Generated: Mon Feb 22 22:33:13 2016
 ##################################################
 
 from gnuradio import analog
@@ -16,20 +16,15 @@ from gnuradio import gr
 from gnuradio.eng_option import eng_option
 from gnuradio.fft import window
 from gnuradio.filter import firdes
-from gnuradio.wxgui import forms
 from grc_gnuradio import blks2 as grc_blks2
-from grc_gnuradio import wxgui as grc_wxgui
 from optparse import OptionParser
 import fcdproplus
 import math
-import wx
 
-class SorDeRa_sdr(grc_wxgui.top_block_gui):
+class SorDeRa_sdr(gr.top_block):
 
     def __init__(self):
-        grc_wxgui.top_block_gui.__init__(self, title="RX logic")
-        _icon_path = "/usr/share/icons/hicolor/32x32/apps/gnuradio-grc.png"
-        self.SetIcon(wx.Icon(_icon_path, wx.BITMAP_TYPE_ANY))
+        gr.top_block.__init__(self, "RX logic")
 
         ##################################################
         # Variables
@@ -48,32 +43,10 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         ##################################################
         # Blocks
         ##################################################
-        _sq_sizer = wx.BoxSizer(wx.VERTICAL)
-        self._sq_text_box = forms.text_box(
-        	parent=self.GetWin(),
-        	sizer=_sq_sizer,
-        	value=self.sq,
-        	callback=self.set_sq,
-        	label="sq",
-        	converter=forms.float_converter(),
-        	proportion=0,
-        )
-        self._sq_slider = forms.slider(
-        	parent=self.GetWin(),
-        	sizer=_sq_sizer,
-        	value=self.sq,
-        	callback=self.set_sq,
-        	minimum=-100,
-        	maximum=0,
-        	num_steps=100,
-        	style=wx.SL_HORIZONTAL,
-        	cast=float,
-        	proportion=1,
-        )
-        self.Add(_sq_sizer)
         self.low_pass_filter_0 = filter.fir_filter_ccf(decimation, firdes.low_pass(
         	1, samp_rate, bw, 1000, firdes.WIN_HAMMING, 6.76))
         self.fft_vxx_0 = fft.fft_vcc(VEC, True, (window.blackmanharris(1024)), True, 1)
+        self.fft_probe = blocks.probe_signal_vf(VEC)
         self.fcdproplus_fcdproplus_0 = fcdproplus.fcdproplus("",1)
         self.fcdproplus_fcdproplus_0.set_lna(1)
         self.fcdproplus_fcdproplus_0.set_mixer_gain(1)
@@ -81,10 +54,9 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         self.fcdproplus_fcdproplus_0.set_freq_corr(7)
         self.fcdproplus_fcdproplus_0.set_freq(freq)
           
+        self.dc_blocker_xx_0_0 = filter.dc_blocker_cc(32, True)
         self.dc_blocker_xx_0 = filter.dc_blocker_ff(64, True)
         self.blocks_wavfile_sink_0 = blocks.wavfile_sink("/tmp/CAPTURE.WAV", 1, samp_rate/decimation, 16)
-        self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, VEC)
-        self.blocks_udp_sink_0_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 42421, VEC*4, False)
         self.blocks_udp_sink_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 42420, 1472, True)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, VEC)
         self.blocks_rms_xx_0 = blocks.rms_cf(1)
@@ -117,28 +89,28 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
+        self.connect((self.blocks_complex_to_mag_squared_0, 0), (self.fft_probe, 0))
+        self.connect((self.fcdproplus_fcdproplus_0, 0), (self.blocks_stream_to_vector_0, 0))
+        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_squared_0, 0))
+        self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))
+        self.connect((self.blocks_rms_xx_0, 0), (self.blks2_selector_0_0, 1))
+        self.connect((self.blks2_selector_0, 1), (self.blocks_rms_xx_0, 0))
+        self.connect((self.analog_quadrature_demod_cf_0, 0), (self.blks2_selector_0_0, 0))
+        self.connect((self.blks2_selector_0, 0), (self.analog_quadrature_demod_cf_0, 0))
+        self.connect((self.analog_pwr_squelch_xx_0, 0), (self.analog_feedforward_agc_cc_0, 0))
+        self.connect((self.low_pass_filter_0, 0), (self.analog_pwr_squelch_xx_0, 0))
+        self.connect((self.dc_blocker_xx_0_0, 0), (self.blocks_multiply_xx_0, 0))
+        self.connect((self.fcdproplus_fcdproplus_0, 0), (self.dc_blocker_xx_0_0, 0))
         self.connect((self.blocks_multiply_xx_0, 0), (self.low_pass_filter_0, 0))
+        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
+        self.connect((self.analog_sig_source_x_0_0, 0), (self.blocks_multiply_xx_0_0, 1))
         self.connect((self.blocks_multiply_xx_0_0, 0), (self.dc_blocker_xx_0, 0))
         self.connect((self.analog_feedforward_agc_cc_0, 0), (self.blks2_selector_0, 0))
-        self.connect((self.analog_sig_source_x_0_0, 0), (self.blocks_multiply_xx_0_0, 1))
         self.connect((self.dc_blocker_xx_0, 0), (self.band_pass_filter_0, 0))
         self.connect((self.blks2_selector_0_0, 0), (self.blocks_multiply_xx_0_0, 0))
-        self.connect((self.low_pass_filter_0, 0), (self.analog_pwr_squelch_xx_0, 0))
-        self.connect((self.analog_pwr_squelch_xx_0, 0), (self.analog_feedforward_agc_cc_0, 0))
         self.connect((self.band_pass_filter_0, 0), (self.blks2_valve_0, 0))
         self.connect((self.blks2_valve_0, 0), (self.blocks_wavfile_sink_0, 0))
-        self.connect((self.blks2_selector_0, 0), (self.analog_quadrature_demod_cf_0, 0))
-        self.connect((self.analog_quadrature_demod_cf_0, 0), (self.blks2_selector_0_0, 0))
-        self.connect((self.blks2_selector_0, 1), (self.blocks_rms_xx_0, 0))
-        self.connect((self.blocks_rms_xx_0, 0), (self.blks2_selector_0_0, 1))
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))
-        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_squared_0, 0))
         self.connect((self.band_pass_filter_0, 0), (self.blocks_udp_sink_0, 0))
-        self.connect((self.blocks_complex_to_mag_squared_0, 0), (self.blocks_vector_to_stream_0, 0))
-        self.connect((self.blocks_vector_to_stream_0, 0), (self.blocks_udp_sink_0_0, 0))
-        self.connect((self.fcdproplus_fcdproplus_0, 0), (self.blocks_multiply_xx_0, 0))
-        self.connect((self.fcdproplus_fcdproplus_0, 0), (self.blocks_stream_to_vector_0, 0))
 
 
 # QT sink close method reimplementation
@@ -149,18 +121,16 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
     def set_sq(self, sq):
         self.sq = sq
         self.analog_pwr_squelch_xx_0.set_threshold(self.sq)
-        self._sq_slider.set_value(self.sq)
-        self._sq_text_box.set_value(self.sq)
 
     def get_samp_rate(self):
         return self.samp_rate
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
         self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, self.bw, 1000, firdes.WIN_HAMMING, 6.76))
-        self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
+        self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
         self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
+        self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
 
     def get_rec(self):
         return self.rec
@@ -188,8 +158,8 @@ class SorDeRa_sdr(grc_wxgui.top_block_gui):
 
     def set_decimation(self, decimation):
         self.decimation = decimation
-        self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
         self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
+        self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
 
     def get_bw(self):
         return self.bw
@@ -224,6 +194,6 @@ if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
     tb = SorDeRa_sdr()
-    tb.Start(True)
-    tb.Wait()
+    tb.start()
+    tb.wait()
 

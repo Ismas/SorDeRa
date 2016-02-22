@@ -8,7 +8,6 @@ import os
 import sys
 import pygame as pg
 from pygame import gfxdraw as pgd
-import socket as sk
 import struct as st
 import math as m
 import random
@@ -130,6 +129,7 @@ def FFT_frame(sock,sf):
 	global dtc,detect_enable
 	global refrescar
 	#global ma, mi
+	global sdr
 
 	pts 	= []
 	y 		= []
@@ -137,12 +137,10 @@ def FFT_frame(sock,sf):
 	tope 	= 0
 	dtcm	= 0
 	if (REAL):
-		fft = sock.recv(4*VEC_SZ)
-		#while (len(fft)<4*VEC_SZ):
-		#	fft += sock.recv(4*VEC_SZ-len(fft))		# 4 = sizeof(float)
-		y   = st.unpack_from('f'*VEC_SZ, fft)		# convierte stream a vector de floats
+		y = sdr.fft_probe.level()
 	else:
 		for x in range(VEC_SZ):	y += [ random.random() ]
+
 
 	for x in range(VEC_SZ):
 		#t = 20*m.log10(y[x])
@@ -456,23 +454,20 @@ if __name__ == "__main__":
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 
 	if (REAL):
-		print("[+] Arrancando logica")
-		sdr = logic.SorDeRa_sdr()
-		sdr.set_VEC = VEC_SZ
 
-		print("[+] Estableciendo valores")
+		print("[+] Estableciendo valores logica")
+		sdr = logic.SorDeRa_sdr()
+		sdr.set_VEC(VEC_SZ)
 		sdr.set_freq(fq)
 		sdr.set_bw(bw)
 		sdr.set_dev(-dev)
 		sdr.set_sq(sq)
-		sdr.Start(True)
+
+		print("[+] Arrancando logica")
+		sdr.start()
 
 		#xdev = dev-(FFTANCHO/2) / (SAMPLERATE/FFTANCHO)
 		xdev = (FFTANCHO/2)
-
-		print("[+] Abriendo socket fft")
-		soc = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
-		soc.bind(ADDR_FFT)
 
 	print("[+] Generando ventana")
 	sf = pantalla_init()
@@ -492,11 +487,11 @@ if __name__ == "__main__":
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
 		FFT_frame(soc,fft_sf)
 		pantalla_refresh(sf)
-		if mn :							# Gestiona menus
-			opt = mn.selecciona()
-			if opt: retf()
+		if mn :							# Si existe un menu, gestiona menus
+			opt = mn.selecciona()		# Lee botonera
+			if opt: retf()				# Si se ha devuelto valor, salimos a la función de retorno
 		else:
-			attend_mouse(fft_sf)
+			attend_mouse(fft_sf)		# Si no hay menu, botones estandard.
 
 	print("[+] Saliendo")
 	sdr.stop()

@@ -56,4 +56,7 @@
 	Calibrada escala de fondo 
 	Ajustada escala de fondo al autozoom
 	Calibrado SQ al autozoom (Ha sido infernal)
-	
+
+20160222
+	Eliminado socket de FFT usando function probes. Reacción mucho más rápida.
+	Eliminadas opciones de ventana del diagrama.
