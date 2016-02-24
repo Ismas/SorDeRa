@@ -287,19 +287,27 @@ def calc_demod_ask():
 
 	opt = None
 	bus = [("AUTO",10),("FM N",0),("AM",1),("FM W",2),("USB",4),("LSB",5)]
-	mn = ""
-	k = butonify
-	k.width = 100
-	mn = k.menu(sf,bus,(50,130,220))
+	if opt:
+		for t in bus:					# TODO TODO TODO REPARAR *********************************
+			print(t[0],opt.texto)
+			if t[0] == opt.texto: 
+				t.append("True") 
+				bus.append(t)
+
+	mn = butonify.menu()
+	mn.width = 100
+	mn.header = "DEMOD"
+	mn.init(sf,bus,(50,130,220))
 
 
 def calc_demod_set():
-	global mn,opt
+	global mn,opt,tmode
 	global modelabel
 	global sdr
 
 	print("SET MODE ",opt.texto,opt.value)
 	modelabel = ftbw.render(opt.texto, 0, MODECOLOR,BGCOLOR)
+	tmode = opt.texto
 	sdr.set_amfm(opt.value)
 	mn = None
 	opt = None
@@ -355,7 +363,7 @@ def pantalla_init():
 	top_sf= sf.subsurface((0,0,TOPANCHO,TOPALTO))		
 	fft_sf= sf.subsurface((0,TOPALTO,FFTANCHO,FFTALTO))
 
-	#print(pg.font.get_fonts())
+	print(pg.font.get_fonts())
 
 	ftdev1 = pg.font.SysFont(FONT,18)						
 	ftdev2 = pg.font.SysFont(FONT,16)						
@@ -476,8 +484,9 @@ if __name__ == "__main__":
 	calc_bw()
 	calc_freq(0,0)
 	calc_sq(FFTALTO/2)
-	opt = butonify.buton(sf,"AM",(0,0,0))
+	opt = butonify.buton()
 	opt.value = 1
+	opt.init(sf,"AM",(0,0,0))
 	calc_demod_set()
 
 	print("[+] Entrando a bucle principal")

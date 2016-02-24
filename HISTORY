@@ -60,3 +60,7 @@
 20160222
 	Eliminado socket de FFT usando function probes. Reacción mucho más rápida.
 	Eliminadas opciones de ventana del diagrama.
+
+20160223
+	Butonify: Modificado init para cambiar parametros, dibuja fondo de menu
+	Butonify: A medias pintar menu con boton seleccionado
