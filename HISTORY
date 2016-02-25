@@ -64,3 +64,7 @@
 20160223
 	Butonify: Modificado init para cambiar parametros, dibuja fondo de menu
 	Butonify: A medias pintar menu con boton seleccionado
+
+20160224
+	Menu con opcion seleccionada
+	Menu de demod sobre la linea de demodudlador

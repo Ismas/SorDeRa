@@ -283,34 +283,31 @@ def calc_sq(posy):
 
 
 def calc_demod_ask():
-	global mn,opt
+	global mn,opt,xdev
 
-	opt = None
-	bus = [("AUTO",10),("FM N",0),("AM",1),("FM W",2),("USB",4),("LSB",5)]
-	if opt:
-		for t in bus:					# TODO TODO TODO REPARAR *********************************
-			print(t[0],opt.texto)
-			if t[0] == opt.texto: 
-				t.append("True") 
-				bus.append(t)
-
+	b = [("AUTO",10),("FM N",0),("AM",1),("FM W",2),("USB",4),("LSB",5)]
+	bus = []
+	for t in b:	
+		k = False
+		if opt:
+			if opt.value == t[1]: k = True
+		bus.append((t[0],t[1],k))
 	mn = butonify.menu()
 	mn.width = 100
 	mn.header = "DEMOD"
+	mn.cx = xdev
 	mn.init(sf,bus,(50,130,220))
-
+	print(bus)
 
 def calc_demod_set():
 	global mn,opt,tmode
 	global modelabel
 	global sdr
 
-	print("SET MODE ",opt.texto,opt.value)
 	modelabel = ftbw.render(opt.texto, 0, MODECOLOR,BGCOLOR)
 	tmode = opt.texto
 	sdr.set_amfm(opt.value)
 	mn = None
-	opt = None
 
 
 def attend_mouse(sf):

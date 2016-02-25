@@ -94,18 +94,19 @@ class menu():
 	#def __init__(s):
 
 	def init(s,sf,bts,c,header="MENU"):
-		#meta = bts.pop()
 		s.sf = sf 					
 		s.bts = bts
 		s.col = c
 
 		i = 0
-		s.cx = s.sf.get_size()[0]/2  								# Calcula posición centrito X
-		s.cy = s.sf.get_size()[1]/2 - len(s.bts)*s.esp
+		if not s.cx: s.cx = s.sf.get_size()[0]/2 						# Calcula posición centrito X
+		if not s.cy: s.cy = s.sf.get_size()[1]/2 - len(s.bts)*s.esp		
+		if s.cx < 0 : s.cx = 0
+		if s.cy < 0 : s.cy = 0
 
 		s.sff = pg.font.SysFont(s.font,s.fsize)					# Crea fuente
 	
-
+		s.but=[]
 		for bt in s.bts:
 			q = buton()
 			if s.width: 
