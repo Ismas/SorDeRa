@@ -68,3 +68,11 @@
 20160224
 	Menu con opcion seleccionada
 	Menu de demod sobre la linea de demodudlador
+
+20160225
+	Ajustado squelch a ojo
+	Squelch cambia de color
+	SMETER
+	Cambiado interface: boton izquierdo mueve desviacion, derecho BW y menu
+	MENU DEMOD
+	RECORD con gran punto rojo parpadeante

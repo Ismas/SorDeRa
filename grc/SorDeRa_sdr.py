@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Mon Feb 22 22:33:13 2016
+# Generated: Fri Feb 26 20:27:24 2016
 ##################################################
 
 from gnuradio import analog
@@ -43,6 +43,7 @@ class SorDeRa_sdr(gr.top_block):
         ##################################################
         # Blocks
         ##################################################
+        self.probe_sq = blocks.probe_signal_f()
         self.low_pass_filter_0 = filter.fir_filter_ccf(decimation, firdes.low_pass(
         	1, samp_rate, bw, 1000, firdes.WIN_HAMMING, 6.76))
         self.fft_vxx_0 = fft.fft_vcc(VEC, True, (window.blackmanharris(1024)), True, 1)
@@ -111,6 +112,7 @@ class SorDeRa_sdr(gr.top_block):
         self.connect((self.band_pass_filter_0, 0), (self.blks2_valve_0, 0))
         self.connect((self.blks2_valve_0, 0), (self.blocks_wavfile_sink_0, 0))
         self.connect((self.band_pass_filter_0, 0), (self.blocks_udp_sink_0, 0))
+        self.connect((self.band_pass_filter_0, 0), (self.probe_sq, 0))
 
 
 # QT sink close method reimplementation
@@ -129,8 +131,8 @@ class SorDeRa_sdr(gr.top_block):
         self.samp_rate = samp_rate
         self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, self.bw, 1000, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
-        self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
+        self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
 
     def get_rec(self):
         return self.rec
@@ -158,8 +160,8 @@ class SorDeRa_sdr(gr.top_block):
 
     def set_decimation(self, decimation):
         self.decimation = decimation
-        self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
+        self.band_pass_filter_0.set_taps(firdes.band_pass(4, self.samp_rate/self.decimation, 50, self.bw, self.bw+1000, firdes.WIN_HAMMING, 6.76))
 
     def get_bw(self):
         return self.bw

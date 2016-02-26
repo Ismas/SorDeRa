@@ -58,6 +58,7 @@ FONT = "arial"
 ftbw = ftdev1 = ftdev2 = ftqc = ""
 fft_sf	= ""
 top_sf = ""
+frame = 0
 
 # Network
 ADDR_FFT = ('127.0.0.1',42421)
@@ -78,8 +79,6 @@ bwlabel = 0		#surface
 # FQ and DEV
 xdev 	= FFTANCHO/2
 dev 	= 0
-sq 		= -70
-xsq		= FFTALTO/2 
 fq 			= 130870000		
 fqc 		= 130870000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
@@ -89,6 +88,11 @@ MINBW		= 150
 MAXF 		= 1999999999
 MINF		= 150000
 fqlabel1    = fqlabel2 = ""
+
+#SQ
+sq 		= -70
+xsq		= FFTALTO/2 
+asq		= 0.0
 
 # Mode
 mode = 1
@@ -106,6 +110,13 @@ fft_media = 10     # cantidad de media
 dtc 	 = []	# Detect
 DTCTHRES = 1.15 # Threshold
 
+#smeter	
+smval 		= 0.0
+smvaladj 	= 10.0
+smbot		= 6.0
+sml 		= 200
+smx			= 0
+
 # BASE & AUTOZOOM
 FFTK   = 8*(FFTALTO/120) 
 azoom  = 1
@@ -113,6 +124,9 @@ MAXZOOM = 10
 base  = 0
 tope  = FFTALTO
 YTOP  = 100
+
+# rec
+rec 	= False
 
 mn = None
 retf = None
@@ -127,8 +141,9 @@ def FFT_frame(sock,sf):
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
 	global dtc,detect_enable
-	global refrescar
+	global refreshfq
 	#global ma, mi
+	global smval,xdev
 	global sdr
 
 	pts 	= []
@@ -141,7 +156,6 @@ def FFT_frame(sock,sf):
 	else:
 		for x in range(VEC_SZ):	y += [ random.random() ]
 
-
 	for x in range(VEC_SZ):
 		#t = 20*m.log10(y[x])
 		t = m.log10(y[x])
@@ -153,12 +167,15 @@ def FFT_frame(sock,sf):
 		#if t > ma: ma = t
 		#if t < mi: mi = t
 
+
 	t = 0.0
 	t2 = FFTALTO
 	t3 = 0
 	for x in range(VEC_SZ):
 		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
 		t /= fft_media
+
+		if x == xdev: smval = t + smbot		# Cojo señal media para el smeter
 
 		#posy = FFTALTO-(t*azoom)-(base*azoom)			# Altura en el FFT
 		posy = FFTALTO-(t*FFTK*azoom)-(6*FFTK*azoom)+base # Altura en el FFT
@@ -211,7 +228,7 @@ def calc_dev():
 	global	xdev,dev
 	global	fq,fqc,afq
 	global  fqlabel1,fqlabel2
-	global 	refrescar
+	global 	refreshfq
 
 	a = FFTANCHO/2											# media pantalla
 	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
@@ -229,7 +246,7 @@ def calc_bw():
 	global bwlabel
 	global DECIRATE,MINBW
 	global ftbw
-	global refrescar
+	global refreshfq
 
 	a = FFTANCHO/2 											# media pantalla
 	bw = m.trunc((SAMPLERATE*xbw)/FFTANCHO)
@@ -247,7 +264,7 @@ def calc_freq(posx,posy):
 	global fqc
 	global numx
 	global sdr
-	global refrescar
+	global refreshfq
 	global mediac
 
 	sp 	 = 4
@@ -267,7 +284,7 @@ def calc_freq(posx,posy):
 	calc_dev()			# Esto afecta al indicador de desviacion
 	mediac = 0 			# reinicia suavizado
 
-	refrescar = True
+	refreshfq = True
 
 
 def calc_sq(posy):
@@ -279,7 +296,7 @@ def calc_sq(posy):
 	sq =  m.trunc( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
-	sdr.set_sq(sq)
+	sdr.set_sq(sq+15.25)	# 15 for que si
 
 
 def calc_demod_ask():
@@ -289,26 +306,61 @@ def calc_demod_ask():
 	bus = []
 	for t in b:	
 		k = False
-		if opt:
-			if opt.value == t[1]: k = True
+		if tmode == t[1]: k = True
 		bus.append((t[0],t[1],k))
 	mn = butonify.menu()
 	mn.width = 100
-	mn.header = "DEMOD"
+	mn.header = "MODE"
 	mn.cx = xdev
-	mn.init(sf,bus,(50,130,220))
-	print(bus)
+	mn.init(sf,bus,(200,130,0))
+
 
 def calc_demod_set():
 	global mn,opt,tmode
 	global modelabel
 	global sdr
 
-	modelabel = ftbw.render(opt.texto, 0, MODECOLOR,BGCOLOR)
 	tmode = opt.texto
+	modelabel = ftbw.render(tmode, 0, MODECOLOR,BGCOLOR)	# Pinta el label del modo
 	sdr.set_amfm(opt.value)
 	mn = None
+	opt = None
 
+
+def demod_menu():
+	global mn,tmode
+	global rec
+
+	bus = []
+	bus += [("MODE:"+tmode,1)]
+	if rec:
+		bus += [("REC:ON",2)]
+	else:
+		bus += [("REC",2)]
+	bus += [("EXIT",0)]
+
+	mn = butonify.menu()
+	mn.cx = xdev
+	mn.width = 100
+	mn.header = "DEMOD"
+	mn.init(sf,bus,(100,100,100))
+
+def demod_menu_response():
+	global mn,opt,retf
+	global top_sf
+	global top_sf
+	global rec
+
+	if opt.value == 1:				# llamar menu node
+		retf = calc_demod_set
+		calc_demod_ask()
+		return
+	if opt.value == 2:				# grabar
+		rec = not rec 				# pinta el punto en fft_frame
+		if not rec: pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)	#Borra botón rojo izquierda smeter
+		sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
+
+	mn = None
 
 def attend_mouse(sf):
 	global xbw,xdev
@@ -321,25 +373,27 @@ def attend_mouse(sf):
 			SALIDA = True
 			continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 1) or 
-			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :
-			if m.fabs(evt.pos[0]-xdev) < 20 and m.fabs(evt.pos[1]-BWY-40) < 20 :		# Demodulator mode
-				calc_demod_ask()
-				retf = calc_demod_set
-				continue
+			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :										# boton izquierdo
 			if m.fabs(evt.pos[0] - FFTANCHO) < 50  and m.fabs(evt.pos[1]-xsq-TOPALTO) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
 				calc_sq(evt.pos[1])																# squelch
 				continue
-			if evt.pos[1] > TOPALTO+BWY :	# ancho de banda
-				xbw = m.fabs(evt.pos[0]-xdev)									# distancia al dev
-				calc_bw()
+			# Va a ser freq
+			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1 and evt.pos[1]<TOPALTO :	# Digitos de frecuencia
+				calc_freq(evt.pos[0],evt.pos[1])
 				continue
-			if (evt.pos[1] > TOPALTO):											# desviacion
+			if (evt.pos[1] > TOPALTO):														# desviacion
 				xdev = evt.pos[0]
 				calc_dev()
 				continue
-			# Va a ser freq
-			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1:				# Digitos de frecuencia
-				calc_freq(evt.pos[0],evt.pos[1])
+		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 3) or 
+			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 3) ) :										# boton derecho
+			if m.fabs(evt.pos[0]-xdev) < 20 and m.fabs(evt.pos[1]-BWY-40) < 20 :		# Menu demodulacion
+				demod_menu()
+				retf = demod_menu_response
+				continue
+			if evt.pos[1] > TOPALTO+BWY :				# ancho de banda
+				xbw = m.fabs(evt.pos[0]-xdev)			
+				calc_bw()
 				continue
 
 
@@ -367,6 +421,15 @@ def pantalla_init():
 	ftbw   = pg.font.SysFont(FONT,16)						
 	ftqc   = pg.font.SysFont('ubuntumono',48)						
 
+	# pinta smeter
+	pgd.box(top_sf,(smx,0,sml,TOPALTO),(0,0,0))
+	fsm = pg.font.SysFont('ubuntumono',14)						
+	fsq = fsm.render('   1  3  5  7  9 +20 +40 +60', 0, (200,200,200),(0,0,0))
+	top_sf.blit(fsq, (smx,5))													# Pinta smeter label
+	fsq = fsm.render(' ||||||||||||||||||||||||||', 0, (200,200,200),(0,0,0))
+	top_sf.blit(fsq, (smx,17))													# Pinta smeter guia
+	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
+
 	return sf
 
 
@@ -376,10 +439,11 @@ def pantalla_refresh(sf):
 	global fq,fqc,bw
 	global modelabel,bwlabel,fqlabel1,fqlabel2
 	global ftqc, numx
-	global maxfill_enable, maxpts_enable, refrescar
+	global maxfill_enable, maxpts_enable, refreshfq
 	global azoom, base
 	global fft_sf,top_sf
-	global sq,xsq
+	global sq,xsq,asq,smval,smvaladj
+	global frame
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
@@ -412,11 +476,20 @@ def pantalla_refresh(sf):
 	fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 
 	# pinta Sqelch
-	pgd.hline(fft_sf,0,FFTANCHO,xsq,SQCOLOR)
+	tc 	= SQCOLOR
+	tsq = sdr.probe_sq.level()				# Lee el nivel para ver si está levantado el squelch
+	if 	tsq != asq: tc = (0,200,0)		# Si está levantado pinta verde
+	pgd.hline(fft_sf,0,FFTANCHO,xsq, tc)
 	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
 	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-12))		# Pinta bw label
+	asq = tsq
 
-	if refrescar:	
+	# pinta smeter
+	pgd.box(top_sf,(smx+10,25,sml-25,9),(0,0,0))
+	pgd.box(top_sf,(smx+10,27,smval*smvaladj,6),(255,50,50))
+
+	# PINTA CIFRAS DE FREQ SI HAN CAMBIADO
+	if refreshfq:	
 		sp 	 = 4
 		size = 24
 		numx = []	# Repinta el indicador de frecuencia
@@ -437,13 +510,19 @@ def pantalla_refresh(sf):
 			if txt[x] not in ['.',','] : numx += [px]				# Almacena la coordenada del numero
 
 	# PINTA MENU IF ANY
-	if mn :
-		mn.refresca()
+	if mn : mn.refresca()
+
+	# PARPADEA BOTON ROJO IF REC
+	if rec:
+		if frame == FPS/2: 
+			pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)		#Borra botón rojo izquierda smeter
+		if frame == 1:
+			pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, tc)			#Pinta botón del color del smeter
 
 	# Flipea/Vuelca la pantalla
 	pg.display.flip()							
-	refrescar = False
-
+	refreshfq = False
+	frame = (frame % FPS) +1	
 
 
 if __name__ == "__main__":
@@ -487,7 +566,7 @@ if __name__ == "__main__":
 	calc_demod_set()
 
 	print("[+] Entrando a bucle principal")
-	refrescar = True
+	refreshfq = True
 	while not SALIDA:
 		clk.tick(FPS)
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
@@ -498,7 +577,6 @@ if __name__ == "__main__":
 			if opt: retf()				# Si se ha devuelto valor, salimos a la función de retorno
 		else:
 			attend_mouse(fft_sf)		# Si no hay menu, botones estandard.
-
 	print("[+] Saliendo")
 	sdr.stop()
 	pg.quit()
