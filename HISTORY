@@ -76,3 +76,11 @@
 	Cambiado interface: boton izquierdo mueve desviacion, derecho BW y menu
 	MENU DEMOD
 	RECORD con gran punto rojo parpadeante
+
+20160226
+	Flexibilizado audio rate, decimation, etc
+	audiorate subido a 11025. Audio directo por pulseaudio, peta mucho menos
+	Primeros amagos de LSB y USB
+	Reorganizado código FFT
+	Pulido puntos max y smeter
+	GRABACION Y RECUPERACION DE ESTADIO (freq, modo,etc)
