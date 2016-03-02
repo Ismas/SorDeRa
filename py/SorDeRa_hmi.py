@@ -45,7 +45,8 @@ FPS 		= 30
 BGCOLOR     = (10, 10, 50)
 FGCOLOR     = (200, 200, 50)
 FILLCOLOR   = (50, 50, 12)
-MAXCOLOR    = (50, 50, 0)
+MAXCOLOR    = (100, 50, 0)
+DETECTCOLOR = (150, 250, 0)
 BWCOLOR     = (200, 0, 0)
 BWCOLOR2    = (50, 0, 0)
 FQCCOLOR  	= (150, 150, 250)
@@ -62,6 +63,7 @@ fft_sf	= ""
 top_sf 	= ""
 frame 	= 0
 tframe 	= 0
+count 	= 0
 
 # GFX
 MENUIMG = "gfx/menu.png"
@@ -143,6 +145,8 @@ SALIDA 	= False
 
 ma = -100
 mi = 100
+
+menusf = ""
 
 def FFT_frame(sock,sf):
 	global py,pydx,fft_media
@@ -411,6 +415,10 @@ def attend_mouse(sf):
 			continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 1) or 
 			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :										# boton izquierdo
+			if m.fabs(evt.pos[0] - TOPANCHO) < 50  and m.fabs(evt.pos[1]-TOPALTO) < 50 :		# MENU PRINCIPAL
+				main_menu()
+				retf = main_menu_response														
+				continue
 			if m.fabs(evt.pos[0] - FFTANCHO) < 50  and m.fabs(evt.pos[1]-xsq-TOPALTO) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
 				calc_sq(evt.pos[1])																# squelch
 				continue
@@ -434,11 +442,81 @@ def attend_mouse(sf):
 				continue
 
 
+def fft_menu():
+	global mn
+
+	b = []
+
+	t = "OFF"
+	if fftfill_enable: t = "ON"
+	b += [( "FILL:"+t, 1, False)]
+
+	t = "OFF"
+	if maxpts_enable: t = "ON"
+	b += [( "PEAK:"+t, 2, False)]
+
+	t = "OFF"
+	if maxdecay_enable: t = "ON"
+	b += [( "DECAY:"+t, 3, False)]
+
+	t = "OFF"
+	if detect_enable: t = "ON"
+	b += [( "DETECT:"+t, 4, False)]
+
+	t = "OFF"
+	if azoom_enable: t = "ON"
+	b += [( "AUTOZOOM:"+t, 5, False)]
+
+	mn = butonify.menu()
+	mn.width = 200
+	mn.cx = FFTANCHO - 250
+	mn.header = "FFT MENU"
+	mn.init(sf,b,(100,100,200))
+
+
+def fft_menu_response():
+	global mn,opt
+	global fftfill_enable, maxpts_enable, maxdecay_enable, detect_enable, azoom_enable
+
+	if opt.value == 1:	fftfill_enable 	= not fftfill_enable
+	if opt.value == 2:	maxpts_enable  	= not maxpts_enable
+	if opt.value == 3:	maxdecay_enable = not maxdecay_enable
+	if opt.value == 4:	detect_enable 	= not detect_enable
+	if opt.value == 5:	azoom_enable 	= not azoom_enable
+
+	if opt.value > 0:	mn = opt = None
+
+
+def main_menu():
+	global mn
+
+	b = [("TOP:FFT",1),("BTM:---",2),("FRONTEND",3),("EXIT",4)]
+	mn = butonify.menu()
+	mn.width = 150
+	mn.cx = FFTANCHO - 250
+	mn.header = "MAIN"
+	mn.init(sf,b,(100,100,200))
+
+def main_menu_response():
+	global mn,opt,retf
+
+	if opt.value == 1: 	# FFT MENU
+		retf = fft_menu_response
+		fft_menu()
+		return
+
+	if opt.value == 4: 	# EXIT
+		mn = None
+		opt = None
+
+
+
 def pantalla_init():
 	global bw, fq
 	global bwlabel, fqlabel
 	global ftbw,ftdev1,ftdev2,ftqc
 	global fft_sf, top_sf
+	global menusf
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
@@ -467,10 +545,9 @@ def pantalla_init():
 	top_sf.blit(fsq, (smx,19))													# Pinta smeter guia
 	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
 
-	# pinta boton menu
+	# pinta boton menu con roto
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
-
 
 	return sf
 
@@ -485,7 +562,8 @@ def pantalla_refresh(sf):
 	global azoom, base
 	global fft_sf,top_sf
 	global sq,xsq,asq,smval,smvaladj
-	global frame
+	global frame, count
+	global menusf
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
@@ -508,15 +586,21 @@ def pantalla_refresh(sf):
 		pgd.rectangle(fft_sf,(tm,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
 	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)						# Pinta dev
 
-	# PINTA FFT
+	# PINTA MAX
 	if maxpts_enable:												# Pintta puntos de max
 		mpts += [(FFTANCHO,FFTALTO),(0,FFTALTO)]
 		pgd.polygon(fft_sf,mpts,MAXCOLOR)
+
+	# PINTA FILL
 	if fftfill_enable:												# Pintta FFT relleno (Más rápido que el fill)
 		for x in pts: pgd.vline(fft_sf,x[0],x[1],FFTALTO,FILLCOLOR)				
+
+	# PINTA FFT
 	pgd.polygon(fft_sf,pts,FGCOLOR)									# pinta FFT
+
+	# PINTA DETECT
 	if detect_enable :												# Pinta detector picos
-		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
+		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,DETECTCOLOR)
 
 	# PINTA DEV
 	if 	tmode != "FM W" :
@@ -574,6 +658,7 @@ def pantalla_refresh(sf):
 	pg.display.flip()							
 	refreshfq = False
 	frame = (frame % FPS) +1	
+	count += 1
 
 
 if __name__ == "__main__":
