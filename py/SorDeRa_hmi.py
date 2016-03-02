@@ -63,6 +63,9 @@ top_sf 	= ""
 frame 	= 0
 tframe 	= 0
 
+# GFX
+MENUIMG = "gfx/menu.png"
+
 # Network
 ADDR_FFT = ('127.0.0.1',42421)
 URL_RPC  = 'http://localhost:42423'
@@ -157,7 +160,7 @@ def FFT_frame(sock,sf):
 	if (REAL):
 		y = sdr.fft_probe.level() 
 	else:
-		for x in range(VEC_SZ):	y += [ random.random() ]
+		for x in range(VEC_SZ):	y += [ random.random() /1000]
 
 	#for x in range(VEC_SZ):
 		#t = 20*m.log10(y[x])
@@ -256,7 +259,7 @@ def calc_dev():
 	sfq = sfq.lstrip('0.')
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
-	sdr.set_dev(m.trunc(-dev))	# set dev
+	if REAL: sdr.set_dev(m.trunc(-dev))	# set dev
 
 
 def calc_bw():
@@ -276,7 +279,7 @@ def calc_bw():
 	xbw = bw / (SAMPLERATE/FFTANCHO)
 	txt = str(bw)
 	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
-	sdr.set_bw(bw)									# set bw
+	if REAL: sdr.set_bw(bw)									# set bw
 
 
 def calc_freq(posx,posy):
@@ -299,7 +302,7 @@ def calc_freq(posx,posy):
 
 	if fqc > MAXF : fqc = MAXF 	# Limites
 	if fqc < MINF : fqc = MINF
-	sdr.set_freq(fqc)
+	if REAL: sdr.set_freq(fqc)
 
 	calc_dev()			# Esto afecta al indicador de desviacion
 	tframe = 0 			# reinicia suavizado
@@ -317,7 +320,7 @@ def calc_sq(posy):
 	sq =  m.trunc( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
-	sdr.set_sq(sq+15.25)	# 15 for que si
+	if REAL: sdr.set_sq(sq+15.25)	# 15 for que si
 
 
 def demod_mode():
@@ -341,19 +344,22 @@ def demod_mode_response():
 	global mn,opt
 	global modelabel,tmode,mode
 	global sdr,decimation,decirate
-	global maxbw
+	global maxbw,audrate
 
 	tmode 	= opt.texto
 	mode 	= opt.value
 	modelabel = ftbw.render(tmode, 0, MODECOLOR,BGCOLOR)	# Pinta el label del modo
 
-	if tmode == "FM W":
-		decimation = 1
-	else:
-		decimation  = SAMPLERATE/audrate
+	#if tmode == "FM W":
+	#	sdr.set_aud_rate(48000)
+	#	maxbw = SAMPLERATE/2
+	#else:
+	#	sdr.set_aud_rate(audrate)
+	#	maxbw = audrate/2
 	calc_bw()
-	sdr.set_decimation(decimation)
-	sdr.set_mode(mode)
+	if REAL: 
+		sdr.set_decimation(decimation)
+		sdr.set_mode(mode)
 	mn = None
 	opt = None
 
@@ -461,6 +467,11 @@ def pantalla_init():
 	top_sf.blit(fsq, (smx,19))													# Pinta smeter guia
 	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
 
+	# pinta boton menu
+	menusf = pg.image.load(MENUIMG)
+	top_sf.blit(menusf,(TOPANCHO-50,0))
+
+
 	return sf
 
 
@@ -489,11 +500,12 @@ def pantalla_refresh(sf):
 			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
 	# Pinta BW
-	if 		tmode == "USB":	tm = xdev
-	elif 	tmode == "LSB":	tm = xdev-xbw*2	
-	else:					tm = xdev-xbw
-	fft_sf.fill(BWCOLOR2,(tm,BWY,xbw*2,FFTALTO-BWY),0) 				# Pinta BW
-	pgd.rectangle(fft_sf,(tm,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
+	if 	tmode != "FM W" :
+		if 		tmode == "USB":	tm = xdev
+		elif 	tmode == "LSB":	tm = xdev-xbw*2	
+		else:					tm = xdev-xbw
+		fft_sf.fill(BWCOLOR2,(tm,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
+		pgd.rectangle(fft_sf,(tm,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
 	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)						# Pinta dev
 
 	# PINTA FFT
@@ -507,14 +519,16 @@ def pantalla_refresh(sf):
 		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,MAXCOLOR)
 
 	# PINTA DEV
-	fft_sf.blit(bwlabel,  (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
+	if 	tmode != "FM W" :
+		fft_sf.blit(bwlabel,  (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
+		fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))						# Pinta dev label 
+		fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 	fft_sf.blit(modelabel,(xdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
-	fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))						# Pinta dev label 
-	fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
 
 	# pinta Sqelch
 	tc 	= SQCOLOR
-	tsq = sdr.probe_sq.level()				# Lee el nivel para ver si está levantado el squelch
+	tsq = 0
+	if REAL: tsq = sdr.probe_sq.level()				# Lee el nivel para ver si está levantado el squelch
 	if 	tsq != asq: tc = (0,200,0)			# Si está levantado pinta verde
 	pgd.hline(fft_sf,0,FFTANCHO,xsq, tc)
 	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
@@ -589,7 +603,6 @@ if __name__ == "__main__":
 		print("[-] ERROR LEYENDO FICHERO ESTADO")
 
 	if (REAL):
-
 		print("[+] Estableciendo valores logica")
 		sdr = logic.SorDeRa_sdr()
 		sdr.set_VEC(VEC_SZ)
@@ -644,6 +657,6 @@ if __name__ == "__main__":
 		print("[-] ERROR CREADNO FICHERO ESTADO")
 
 	print("[+] Saliendo")
-	sdr.stop()
+	if REAL: sdr.stop()
 	pg.quit()
 	sys.exit()
