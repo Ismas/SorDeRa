@@ -5,9 +5,12 @@ import os
 import sys
 import time
 import pygame as pg
+import math
 from pygame import gfxdraw as pgd
 
-VERSION = "0.1"
+VERSION = "0.2"
+MATERIAL = True
+
 
 class buton():
 	# Crea y pinta un boton
@@ -16,7 +19,7 @@ class buton():
 	aur = 1.618 * (16.0/9.0)
 	sff = ""
 	sft = ""
-	font = "arialblack"
+	font = u'droidsans'
 	width = 200
 	height = float(width) / aur
 	#fsize = width/7
@@ -25,6 +28,8 @@ class buton():
 	posy = 10
 	#size = (width,height)
 	color = (100,100,100)
+	BTNFONDO 	= (220,220,220)
+	BTNSEP 		= (180,180,180)
 	value = None
 	estado = False
 
@@ -42,25 +47,33 @@ class buton():
 	
 
 	def pinta(s,sel):	# Sel: seleccionado o no
-		if sel:	
-			col = ( 255,255,255)
-		else: 
-			col = s.color
-		s.sf.fill((s.color[0]/2,s.color[1]/2,s.color[2]/2),(s.posx,s.posy,s.width,s.height),0)		# Pinta borde
-		s.sf.fill(col,(s.posx+s.border/2,s.posy+s.border/2,s.width-s.border,s.height-s.border),0)	# Pinta centro
-		s.sft = s.sff.render(s.texto, 0, (0,0,0), col)												# Pinta texto
-		s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))	# Render texto
+						# NOS PASAMOS A MATERIAL DESIGN
+
+		if not MATERIAL:
+			if sel:	
+				col = (255,255,255)
+			else: 
+				col = s.color
+			s.sf.fill((s.color[0]/2,s.color[1]/2,s.color[2]/2),(s.posx,s.posy,s.width,s.height),0)		# Pinta borde
+			s.sf.fill(col,(s.posx+s.border/2,s.posy+s.border/2,s.width-s.border,s.height-s.border),0)	# Pinta centro
+			s.sft = s.sff.render(s.texto, 0, (0,0,0), col)												# Pinta texto
+			s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))	# Render texto
+		else:
+			if sel:	
+				col = (255,255,255)
+			else: 
+				col = s.BTNFONDO
+			s.height = 72
+			s.sf.fill(col,(s.posx,s.posy,s.width,s.height),0)				# Pinta caja
+			pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy+s.height)-1,s.BTNSEP)			# Pinta separador
+																					# Pinta icono
+			s.sft = s.sff.render(s.texto, 0, (0,0,0), col)							# Pinta texto
+			s.sf.blit(s.sft,(s.posx+72,s.posy+s.height/2-s.sft.get_size()[1]/2))	# Render texto
+
 
 
 	def refresca(s,sel):
-		s.pinta(sel)
-		#if sel:	
-		#	col = ( 255,255,255)
-		#else: 
-		#	col = s.color
-		#s.sf.fill(col,(s.posx+s.border/2,s.posy+s.border/2,s.width-s.border,s.height-s.border),0)
-		#s.sft = s.sff.render(s.texto, 0, (0,0,0), col)
-		#s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))
+		s.pinta(sel)	# Igual en el futuro nos pasamos a surface
 
 
 	def borra(s,bgcol):
@@ -84,11 +97,14 @@ class menu():
 	horborder = 5
 	verborder = 5
 	sff = None
-	font = "droidsans"
+	font = u'droidsans'
 	fsize = 16
-	header = "MENU"
+	header = "Menu"
+	menuicon = "gfx/menu.png"
+	menuicnsf = None
 	cx = cy = 0
 	a = b = c = d = 0
+	HEADSIZE = 64
 
 
 	#def __init__(s):
@@ -106,8 +122,13 @@ class menu():
 
 		s.sff = pg.font.SysFont(s.font,s.fsize)					# Crea fuente
 	
+		# CARGA ICONOS
+		s.menuicnsf = pg.image.load(s.menuicon)						
+
 		s.but=[]
+		i=-1
 		for bt in s.bts:
+			i += 1
 			q = buton()
 			if s.width: 
 				q.width = s.width
@@ -115,22 +136,36 @@ class menu():
 			q.value  = bt[1]
 			q.init(s.sf,bt[0],s.col)							# Crea el boton con el texto y color del menu
 			q.posx = s.cx - q.width/2
-			q.posy = s.cy - (q.height*len(s.bts))/2 + (i*q.height) + i*s.esp  
+			#q.posy = s.cy - (q.height*len(s.bts))/2 + (i*q.height) + i*s.esp  
+			q.posy = 56 + s.cy - (72*len(s.bts))/2 + (i*72) 
 			s.but += [q]										# Guarda boton
 			s.height += q.height
-			i += 1
 
-		s.a = s.cx-s.width/2-s.horborder					# posx
-		s.b = s.cy-s.height/2-s.verborder*2-s.fsize			# posy
-		s.c = s.width+(s.horborder*2)						# anchura
-		s.d = s.height+(s.verborder*2)+ s.fsize	+20			# altura
-
+		if not MATERIAL:
+			s.a = s.cx-s.width/2-s.horborder					# posx
+			s.b = s.cy-s.height/2-s.verborder*2-s.fsize			# posy
+			s.c = s.width+(s.horborder*2)						# anchura
+			s.d = s.height+(s.verborder*2)+ s.fsize	+20			# altura
+		else:
+			s.a = s.cx-s.width/2			# posx
+			s.b = s.cy-s.height/2+72		# posy
+			s.c = s.width					# anchura
+			s.d = s.height					# altura
+		
 
 	def pinta(s):
-		s.sf.fill( (s.col[0]/3,s.col[1]/3,s.col[2]/3), (s.a,s.b,s.c,s.d),0)				# Pinta fondo
-		s.sf.fill(s.colhead,(s.a+s.horborder,s.b+s.verborder,s.width,s.fsize+4),0)		# pinta header
-		sft = s.sff.render(s.header ,0 ,(0,0,0) ,s.colhead)								# Pinta texto
-		s.sf.blit(sft,(s.cx-sft.get_size()[0]/2,s.b+s.verborder))						# Render texto
+		# NOS PASAMOS A MATERIAL DESIGN
+		if not MATERIAL:
+			s.sf.fill( (s.col[0]/3,s.col[1]/3,s.col[2]/3), (s.a,s.b,s.c,s.d),0)				# Pinta fondo
+			s.sf.fill(s.colhead,(s.a+s.horborder,s.b+s.verborder,s.width,s.fsize+4),0)		# pinta header
+			sft = s.sff.render(s.header ,0 ,(0,0,0) ,s.colhead)								# Pinta texto
+			s.sf.blit(sft,(s.cx-sft.get_size()[0]/2,s.b+s.verborder))						# Render texto
+		else:
+			# MATERIAL
+			s.sf.fill(s.colhead,(s.a,s.b,s.c,s.HEADSIZE),0)									# pinta fondo header
+			s.sf.blit(s.menuicnsf,(s.a+16,s.b+s.HEADSIZE/2-s.menuicnsf.get_size()[1]/2))	# Pinta ICONO MENU
+			sft = s.sff.render( s.header ,0 ,(255,255,255) ,s.colhead)			# Pinta TEXTO HEADER
+			s.sf.blit(sft,(s.a+72,s.b+s.HEADSIZE/2-sft.get_size()[1]/2))					# Render texto
 		for bt in s.but:
 			bt.pinta(bt.estado)
 
@@ -152,14 +187,13 @@ class menu():
 						return bt
 
 	def refresca(s):
-		s.pinta()
-		#for bt in s.but: bt.pinta(bt.estado)
+		s.pinta()			# Igual hacemos surface en el futuro
 
 	def borra(s,bgcolor):
 		for bt in s.but: bt.borra(bgcolor)
 
 if __name__ == "__main__":
-	exit()
+	#exit()
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
@@ -178,8 +212,10 @@ if __name__ == "__main__":
 	#x.posx = 200
 	#x.pinta(False)
 
-	bus = [("FM N",1),("FM W",2),("AM",3),("USB",4),("LSB",5)]
-	m = menu(sf,bus,(50,130,220))
+	bus = [("FM N",1,False),("FM W",2,False),("AM",3,False),("USB",4,False),("LSB",5,False)]
+	m = menu()
+	m.width = 300
+	m.init(sf,bus,(100,100,200))
 	m.pinta()
 	pg.display.flip()
 
@@ -188,10 +224,11 @@ if __name__ == "__main__":
 	while k == None or k.texto != "USB":
 		k = m.selecciona()
 		if k != None : print(k.texto)
+		m.borra((10,10,50))
+		m.refresca()
+		pg.display.flip()
 
 	print(k)
-	m.borra((10,10,50))
-	pg.display.flip()
 
 	#time.sleep(5)
 

@@ -13,10 +13,10 @@ import struct as st
 import math as m
 import random
 import pickle
-import SorDeRa_sdr as logic
+#import SorDeRa_sdr as logic
 import butonify
 
-REAL = True
+REAL = False
 
 maxpts_enable 	= False
 maxdecay_enable = False
