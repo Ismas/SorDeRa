@@ -43,7 +43,11 @@ class buton():
 		s.size = (s.width,s.height)
 		s.fsize = s.width/7
 		s.border = s.height/10
+		if MATERIAL:
+			s.height 	= 72
+			s.fsize 	= 24
 		s.sff = pg.font.SysFont(s.font,s.fsize)						
+
 	
 
 	def pinta(s,sel):	# Sel: seleccionado o no
@@ -89,7 +93,8 @@ class menu():
 	but = []
 	esp = 5 			# Pixels entre botones
 	col = (100,100,100)
-	colhead = (200,200,100)
+	#colhead = (200,200,100) #009688
+	colhead = (0x00,0x96,0x88)
 	sel = 0
 	last = None
 	width = None
@@ -132,6 +137,8 @@ class menu():
 			q = buton()
 			if s.width: 
 				q.width = s.width
+			else:
+				s.width = 300
 			if len(bt)>2: q.estado = bt[2]
 			q.value  = bt[1]
 			q.init(s.sf,bt[0],s.col)							# Crea el boton con el texto y color del menu
@@ -148,10 +155,10 @@ class menu():
 			s.d = s.height+(s.verborder*2)+ s.fsize	+20			# altura
 		else:
 			s.a = s.cx-s.width/2			# posx
-			s.b = s.cy-s.height/2+72		# posy
+			s.b = s.cy-s.height/2 			# posy
 			s.c = s.width					# anchura
 			s.d = s.height					# altura
-		
+
 
 	def pinta(s):
 		# NOS PASAMOS A MATERIAL DESIGN

@@ -13,10 +13,10 @@ import struct as st
 import math as m
 import random
 import pickle
-#import SorDeRa_sdr as logic
 import butonify
+import SorDeRa_sdr as logic
 
-REAL = False
+REAL = True
 
 maxpts_enable 	= False
 maxdecay_enable = False
@@ -338,8 +338,8 @@ def demod_mode():
 		if tmode == t[1]: k = True
 		bus.append((t[0],t[1],k))
 	mn = butonify.menu()
-	mn.width = 100
-	mn.header = "MODE"
+	mn.width = 300
+	mn.header = "Demodulation mode"
 	mn.cx = xdev
 	mn.init(sf,bus,(200,130,0))
 
@@ -382,8 +382,8 @@ def demod_menu():
 
 	mn = butonify.menu()
 	mn.cx = xdev
-	mn.width = 100
-	mn.header = "DEMOD"
+	mn.width = 300
+	mn.header = "Demodulator"
 	mn.init(sf,bus,(100,100,100))
 
 def demod_menu_response():
@@ -449,28 +449,31 @@ def fft_menu():
 
 	t = "OFF"
 	if fftfill_enable: t = "ON"
-	b += [( "FILL:"+t, 1, False)]
+	b += [( "Fill:     "+t, 1, False )]
 
 	t = "OFF"
 	if maxpts_enable: t = "ON"
-	b += [( "PEAK:"+t, 2, False)]
+	b += [( "Peak:     "+t, 2, False)]
 
 	t = "OFF"
 	if maxdecay_enable: t = "ON"
-	b += [( "DECAY:"+t, 3, False)]
+	b += [( "Decay:    "+t, 3, False)]
 
 	t = "OFF"
 	if detect_enable: t = "ON"
-	b += [( "DETECT:"+t, 4, False)]
+	b += [( "Detect:   "+t, 4, False)]
 
 	t = "OFF"
 	if azoom_enable: t = "ON"
-	b += [( "AUTOZOOM:"+t, 5, False)]
+	b += [( "AutoZOOM: "+t, 5, False)]
+
+	b += [( "Back", 0, False)]
+
 
 	mn = butonify.menu()
-	mn.width = 200
-	mn.cx = FFTANCHO - 250
-	mn.header = "FFT MENU"
+	mn.width = 300
+	mn.cx = FFTANCHO - 300
+	mn.header = "FFT Menu"
 	mn.init(sf,b,(100,100,200))
 
 
@@ -484,17 +487,21 @@ def fft_menu_response():
 	if opt.value == 4:	detect_enable 	= not detect_enable
 	if opt.value == 5:	azoom_enable 	= not azoom_enable
 
-	if opt.value > 0:	mn = opt = None
+	if opt.value == 0:	
+		mn = opt = None
+	else:
+		mn = None
+		fft_menu()
 
 
 def main_menu():
 	global mn
 
-	b = [("TOP:FFT",1),("BTM:---",2),("FRONTEND",3),("EXIT",4)]
+	b = [("Upper window: FFT",1),("Lower window: None",2),("Frontend config",3),("Back",4)]
 	mn = butonify.menu()
-	mn.width = 150
-	mn.cx = FFTANCHO - 250
-	mn.header = "MAIN"
+	mn.width = 400
+	mn.cx = FFTANCHO - 400
+	mn.header = "Main"
 	mn.init(sf,b,(100,100,200))
 
 def main_menu_response():
@@ -545,7 +552,7 @@ def pantalla_init():
 	top_sf.blit(fsq, (smx,19))													# Pinta smeter guia
 	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
 
-	# pinta boton menu con roto
+	# pinta boton menu
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
 
