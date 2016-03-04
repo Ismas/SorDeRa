@@ -9,71 +9,50 @@ import math
 from pygame import gfxdraw as pgd
 
 VERSION = "0.2"
-MATERIAL = True
 
 
 class buton():
 	# Crea y pinta un boton
 	# Parametros: texto y color
 
-	aur = 1.618 * (16.0/9.0)
-	sff = ""
-	sft = ""
+	dpi = 2
+
+	sff = None
+	sft = None
 	font = u'droidsans'
 	width = 200
-	height = float(width) / aur
-	#fsize = width/7
-	#border = height/10
 	posx = 10
 	posy = 10
-	#size = (width,height)
-	color = (100,100,100)
+	aposy = posy
 	BTNFONDO 	= (220,220,220)
 	BTNSEP 		= (180,180,180)
-	value = None
-	estado = False
-
-	#def __init__(s):
+	value 	= None
+	estado 	= False
+	texto2 	= ""
+	# Constantes MATERIAL
+	margenizq 		= 16 / dpi
+	tituloheight 	= 64 / dpi
+	btnheight		= 72 / dpi
+	fsize			= 24 / dpi # 12, 14, 16, 20, 24, 34, 45, etc
 
 	def init(s,sf,t,c):
 		s.sf = sf
 		s.texto = t
 		s.color = c
-		s.height = float(s.width) / s.aur
-		s.size = (s.width,s.height)
-		s.fsize = s.width/7
-		s.border = s.height/10
-		if MATERIAL:
-			s.height 	= 72
-			s.fsize 	= 24
-		s.sff = pg.font.SysFont(s.font,s.fsize)						
-
-	
+		#s.size = (s.width,s.height)
+		s.sff = pg.font.SysFont(s.font,s.fsize)	
+		s.aposy = s.posy					
 
 	def pinta(s,sel):	# Sel: seleccionado o no
 						# NOS PASAMOS A MATERIAL DESIGN
 
-		if not MATERIAL:
-			if sel:	
-				col = (255,255,255)
-			else: 
-				col = s.color
-			s.sf.fill((s.color[0]/2,s.color[1]/2,s.color[2]/2),(s.posx,s.posy,s.width,s.height),0)		# Pinta borde
-			s.sf.fill(col,(s.posx+s.border/2,s.posy+s.border/2,s.width-s.border,s.height-s.border),0)	# Pinta centro
-			s.sft = s.sff.render(s.texto, 0, (0,0,0), col)												# Pinta texto
-			s.sf.blit(s.sft,(s.posx+s.width/2-s.sft.get_size()[0]/2,s.posy+s.height/2-s.sft.get_size()[1]/2))	# Render texto
-		else:
-			if sel:	
-				col = (255,255,255)
-			else: 
-				col = s.BTNFONDO
-			s.height = 72
-			s.sf.fill(col,(s.posx,s.posy,s.width,s.height),0)				# Pinta caja
-			pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy+s.height)-1,s.BTNSEP)			# Pinta separador
-																					# Pinta icono
-			s.sft = s.sff.render(s.texto, 0, (0,0,0), col)							# Pinta texto
-			s.sf.blit(s.sft,(s.posx+72,s.posy+s.height/2-s.sft.get_size()[1]/2))	# Render texto
-
+		if sel:	col = (255,255,255)
+		else: 	col = s.BTNFONDO
+		s.sf.fill(col,(s.posx,s.posy,s.width,s.btnheight),0)				# Pinta caja
+		pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy+s.btnheight)-1,s.BTNSEP)			# Pinta separador
+																				# Pinta icono
+		s.sft = s.sff.render(s.texto, 1, (0,0,0), col)							# Pinta texto
+		s.sf.blit(s.sft,(s.posx+s.btnheight,s.posy+s.btnheight/2-s.sft.get_size()[1]/2))	# Render texto
 
 
 	def refresca(s,sel):
@@ -89,39 +68,39 @@ class menu():
 	# Los botones vienen en una lista de tuplas nombre/valor
 	# params: surface, lista, color
 
+	dpi = 2
+
 	bts = []
 	but = []
-	esp = 5 			# Pixels entre botones
-	col = (100,100,100)
-	#colhead = (200,200,100) #009688
-	colhead = (0x00,0x96,0x88)
+	#col = (100,100,100)
 	sel = 0
-	last = None
-	width = None
-	height = 10
-	horborder = 5
-	verborder = 5
-	sff = None
-	font = u'droidsans'
-	fsize = 16
-	header = "Menu"
-	menuicon = "gfx/menu.png"
-	menuicnsf = None
+	last 	= None
+	width 	= None
+	height 	= 10
+	sff 	= None
+	font 	= u'droidsans'
+	header 		= "Menu"
+	colhead 	= (0x00,0x96,0x88) # Gama Teil
+	menuicon 	= "gfx/menu.png"
+	menuicnsf 	= None
+	# Constantes MATERIAL
+	margenizq 		= 16 / dpi
+	tituloheight 	= 64 / dpi
+	btnheight		= 72 / dpi
+	fsize 			= 24 / dpi
+	frame	= 0
+
 	cx = cy = 0
 	a = b = c = d = 0
-	HEADSIZE = 64
 
 
-	#def __init__(s):
-
-	def init(s,sf,bts,c,header="MENU"):
+	def init(s,sf,bts,c,header="Menu"):
 		s.sf = sf 					
 		s.bts = bts
 		s.col = c
 
-		i = 0
 		if not s.cx: s.cx = s.sf.get_size()[0]/2 						# Calcula posición centrito X
-		if not s.cy: s.cy = s.sf.get_size()[1]/2 - len(s.bts)*s.esp		
+		if not s.cy: s.cy = s.sf.get_size()[1]/2 - len(s.bts)*s.height	
 		if s.cx < 0 : s.cx = 0
 		if s.cy < 0 : s.cy = 0
 
@@ -130,8 +109,8 @@ class menu():
 		# CARGA ICONOS
 		s.menuicnsf = pg.image.load(s.menuicon)						
 
-		s.but=[]
-		i=-1
+		s.but 	=	[]
+		i 	  	=	-1
 		for bt in s.bts:
 			i += 1
 			q = buton()
@@ -139,48 +118,41 @@ class menu():
 				q.width = s.width
 			else:
 				s.width = 300
-			if len(bt)>2: q.estado = bt[2]
 			q.value  = bt[1]
-			q.init(s.sf,bt[0],s.col)							# Crea el boton con el texto y color del menu
-			q.posx = s.cx - q.width/2
-			#q.posy = s.cy - (q.height*len(s.bts))/2 + (i*q.height) + i*s.esp  
-			q.posy = 56 + s.cy - (72*len(s.bts))/2 + (i*72) 
-			s.but += [q]										# Guarda boton
-			s.height += q.height
+			if len(bt)>2: q.estado = bt[2]	# Usa estado visual si aparece
+			if len(bt)>3: q.texto2 = bt[3]	# Usa estado textual si aparece
+			q.init(s.sf,bt[0],s.col)		# Crea el boton con el texto y color del menu
+			q.posx = s.cx - q.width/2 		# Coloca el boton en X					
+			q.posy = s.cy - (q.btnheight*len(s.bts))/2 + (i*q.btnheight) # Coloca el boton en Y
+			s.but += [q]				# Guarda boton
+			s.height += q.btnheight		# Calcula altura total
 
-		if not MATERIAL:
-			s.a = s.cx-s.width/2-s.horborder					# posx
-			s.b = s.cy-s.height/2-s.verborder*2-s.fsize			# posy
-			s.c = s.width+(s.horborder*2)						# anchura
-			s.d = s.height+(s.verborder*2)+ s.fsize	+20			# altura
-		else:
-			s.a = s.cx-s.width/2			# posx
-			s.b = s.cy-s.height/2 			# posy
-			s.c = s.width					# anchura
-			s.d = s.height					# altura
+		s.a = s.cx-s.width/2				# posx
+		s.b = s.cy-s.height/2-(54 / s.dpi)	# posy WHA THE HELL THAT 54 IS
+		s.c = s.width						# anchura
+		s.d = s.height						# altura
 
 
 	def pinta(s):
 		# NOS PASAMOS A MATERIAL DESIGN
-		if not MATERIAL:
-			s.sf.fill( (s.col[0]/3,s.col[1]/3,s.col[2]/3), (s.a,s.b,s.c,s.d),0)				# Pinta fondo
-			s.sf.fill(s.colhead,(s.a+s.horborder,s.b+s.verborder,s.width,s.fsize+4),0)		# pinta header
-			sft = s.sff.render(s.header ,0 ,(0,0,0) ,s.colhead)								# Pinta texto
-			s.sf.blit(sft,(s.cx-sft.get_size()[0]/2,s.b+s.verborder))						# Render texto
-		else:
-			# MATERIAL
-			s.sf.fill(s.colhead,(s.a,s.b,s.c,s.HEADSIZE),0)									# pinta fondo header
-			s.sf.blit(s.menuicnsf,(s.a+16,s.b+s.HEADSIZE/2-s.menuicnsf.get_size()[1]/2))	# Pinta ICONO MENU
-			sft = s.sff.render( s.header ,0 ,(255,255,255) ,s.colhead)			# Pinta TEXTO HEADER
-			s.sf.blit(sft,(s.a+72,s.b+s.HEADSIZE/2-sft.get_size()[1]/2))					# Render texto
+		# MATERIAL		
+		i = 2
 		for bt in s.but:
+			bt.posy = s.cy - (bt.btnheight*len(s.but))/2 - ((bt.btnheight/2)-(s.frame*i)) - s.frame*1.5
 			bt.pinta(bt.estado)
+			i += 1
+		s.sf.fill(s.colhead,(s.a,s.b,s.c,s.tituloheight),0)											# pinta fondo header
+		s.sf.blit(s.menuicnsf,(s.a+s.margenizq,s.b+s.tituloheight/2-s.menuicnsf.get_size()[1]/2))	# Pinta ICONO MENU
+		sft = s.sff.render( s.header ,1 ,(255,255,255) ,s.colhead)									# Pinta TEXTO HEADER
+		s.sf.blit(sft,(s.a+s.btnheight,s.b+s.tituloheight/2-sft.get_size()[1]/2))					# Render texto
+		if s.frame < s.btnheight: s.frame += 3 # ANIMA
+
 
 	def selecciona(s):
 		for evt in pg.event.get():
 			if (evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1) or (evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1):
 				for bt in s.but:
-					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height:				
+					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.btnheight:				
 						if s.last:
 							s.last.estado = False
 							s.last.refresca(s.last.estado)
@@ -190,7 +162,7 @@ class menu():
 
 			if evt.type == pg.MOUSEBUTTONUP and evt.button == 1 :
 				for bt in s.but:
-					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.height and bt.estado: 
+					if evt.pos[0] >= bt.posx and evt.pos[0] <= bt.posx+bt.width and evt.pos[1] >= bt.posy and evt.pos[1] <= bt.posy+bt.btnheight and bt.estado: 
 						return bt
 
 	def refresca(s):

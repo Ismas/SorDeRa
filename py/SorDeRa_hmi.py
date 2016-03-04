@@ -338,7 +338,7 @@ def demod_mode():
 		if tmode == t[1]: k = True
 		bus.append((t[0],t[1],k))
 	mn = butonify.menu()
-	mn.width = 300
+	mn.width = 150
 	mn.header = "Demodulation mode"
 	mn.cx = xdev
 	mn.init(sf,bus,(200,130,0))
@@ -373,16 +373,16 @@ def demod_menu():
 	global rec
 
 	bus = []
-	bus += [("MODE:"+tmode,1)]
+	bus += [("Mode: "+tmode,1)]
 	if rec:
-		bus += [("REC:ON",2)]
+		bus += [("Rec: ON",2)]
 	else:
-		bus += [("REC",2)]
-	bus += [("EXIT",0)]
+		bus += [("Rec",2)]
+	bus += [("Back",0)]
 
 	mn = butonify.menu()
 	mn.cx = xdev
-	mn.width = 300
+	mn.width = 150
 	mn.header = "Demodulator"
 	mn.init(sf,bus,(100,100,100))
 
@@ -442,7 +442,7 @@ def attend_mouse(sf):
 				continue
 
 
-def fft_menu():
+def fft_menu(refresh = False):
 	global mn
 
 	b = []
@@ -471,9 +471,10 @@ def fft_menu():
 
 
 	mn = butonify.menu()
-	mn.width = 300
-	mn.cx = FFTANCHO - 300
+	mn.width = 150
+	mn.cx = FFTANCHO - 75
 	mn.header = "FFT Menu"
+	if refresh: mn.frame = 36 # no scroll
 	mn.init(sf,b,(100,100,200))
 
 
@@ -491,7 +492,7 @@ def fft_menu_response():
 		mn = opt = None
 	else:
 		mn = None
-		fft_menu()
+		fft_menu(True)
 
 
 def main_menu():
@@ -499,8 +500,8 @@ def main_menu():
 
 	b = [("Upper window: FFT",1),("Lower window: None",2),("Frontend config",3),("Back",4)]
 	mn = butonify.menu()
-	mn.width = 400
-	mn.cx = FFTANCHO - 400
+	mn.width = 200
+	mn.cx = FFTANCHO - 100
 	mn.header = "Main"
 	mn.init(sf,b,(100,100,200))
 
