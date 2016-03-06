@@ -77,10 +77,33 @@
 	MENU DEMOD
 	RECORD con gran punto rojo parpadeante
 
-20160226
+20160227
 	Flexibilizado audio rate, decimation, etc
 	audiorate subido a 11025. Audio directo por pulseaudio, peta mucho menos
 	Primeros amagos de LSB y USB
 	Reorganizado código FFT
 	Pulido puntos max y smeter
 	GRABACION Y RECUPERACION DE ESTADIO (freq, modo,etc)
+
+20160228
+	Amago de FM W
+
+20160302
+	Menu principal y de FFT y botón de menú principal
+
+20160303
+	Inicio de cambio de botonera a Material Design 
+	Animación en el despliegue de los menus
+
+20160304
+	Descubierto metodo para eliminar linea de DC. Pendiente hacerlo automático
+	Reorganizacion esquema
+	Paso a hardware de salida fijo sin pulseaudio. 
+	Mejora FM
+	FM STEREO
+
+20160306
+	Prueba para manejar el sonido con el pygame, sin exito
+	Butonify cambiado a listas de diccionarios.
+	Butonify nuevos tipos de botones: Switch.
+	Cambiados todos los menus

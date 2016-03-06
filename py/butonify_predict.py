@@ -25,52 +25,23 @@ class buton():
 	posy = 10
 	aposy = posy
 	BTNFONDO 	= (220,220,220)
-	BTNFONDO2	= (200,200,200)
 	BTNSEP 		= (180,180,180)
-	tipo	= "Boton"
 	value 	= None
 	estado 	= False
 	texto2 	= ""
 	# Constantes MATERIAL
 	margenizq 		= math.trunc(16 / dpi)
-	txtizq 			= math.trunc(72 / dpi)
-	margender 		= math.trunc(64 / dpi)
 	tituloheight 	= math.trunc(64 / dpi)
 	btnheight		= math.trunc(72 / dpi)
 	fsize			= math.trunc(24 / dpi) # 12, 14, 16, 20, 24, 34, 45, etc
 
-	#########
-	# TIPOS #
-	#########
-		# Boton
-		# Switch
-
-	def init(s,sf,btn):
-		s.sf = sf 									# Recoge surface
-		s.sff = pg.font.SysFont(s.font,s.fsize)		# Crea fuente
-		s.aposy = s.posy							# Almacena pos
-		for b in btn.items():
-			if b[0] == "text": 	s.texto = b[1]		# Extrae los campos del dict
-			if b[0] == "text2": s.texto2 = b[1]
-			if b[0] == "type": 	s.tipo = b[1]
-			if b[0] == "posx": 	s.posx = b[1]
-			if b[0] == "posy": 	s.posy = b[1]
-			if b[0] == "value":	s.value = b[1]
-			if b[0] == "color": s.BTNFONDO = b[1]
-			if b[0] == "hight": s.estado = b[1]
-
-
-	def create(self):
-		return {
-				"type":"Boton",
-				"text":"Click",
-				"text2":"No",
-				"posx": 10,
-				"posy": 10,
-				"value":0,
-				"color":(200,200,200),
-				"hight":False
-		}
+	def init(s,sf,t,c):
+		s.sf = sf
+		s.texto = t
+		s.color = c
+		#s.size = (s.width,s.height)
+		s.sff = pg.font.SysFont(s.font,s.fsize)	
+		s.aposy = s.posy					
 
 	def pinta(s,sel):	# Sel: seleccionado o no
 						# NOS PASAMOS A MATERIAL DESIGN
@@ -81,11 +52,7 @@ class buton():
 		pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy+s.btnheight)-1,s.BTNSEP)			# Pinta separador
 																				# Pinta icono
 		s.sft = s.sff.render(s.texto, 1, (0,0,0), col)							# Pinta texto
-		s.sf.blit(s.sft, (s.posx+s.txtizq, s.posy+s.btnheight/2-s.sft.get_size()[1]/2))	# Render texto
-		if s.tipo == "Switch":
-			s.sft = s.sff.render(s.texto2, 1, (0,0,0), col)											# Pinta texto2
-			s.sf.blit(s.sft,(s.posx+s.width-s.txtizq, math.trunc(s.posy+s.btnheight/2-s.sft.get_size()[1]/2)))	# Render texto2
-			#pgd.vline(s.sf, s.posx+s.width-s.txtizq-s.margenizq, math.trunc(s.posy)+5, math.trunc(s.posy+s.btnheight-1)-5,s.BTNSEP)				# Pinta separador
+		s.sf.blit(s.sft,(s.posx+s.btnheight,s.posy+s.btnheight/2-s.sft.get_size()[1]/2))	# Render texto
 
 
 	def refresca(s,sel):
@@ -93,7 +60,7 @@ class buton():
 
 
 	def borra(s,bgcol):
-		s.sf.fill(bgcol,(s.posx,s.posy,s.width,s.btnheight),0)
+		s.sf.fill(bgcol,(s.posx,s.posy,s.width,s.height),0)
 
 
 class menu():
@@ -151,16 +118,19 @@ class menu():
 				q.width = s.width
 			else:
 				s.width = 300
-			q.init(s.sf,bt)					# Crea el boton con sus variables
+			q.value  = bt[1]
+			if len(bt)>2: q.estado = bt[2]	# Usa estado visual si aparece
+			if len(bt)>3: q.texto2 = bt[3]	# Usa estado textual si aparece
+			q.init(s.sf,bt[0],s.col)		# Crea el boton con el texto y color del menu
 			q.posx = s.cx - q.width/2 		# Coloca el boton en X					
 			q.posy = s.cy - (q.btnheight*len(s.bts))/2 + (i*q.btnheight) # Coloca el boton en Y
-			s.but += [q]					# Guarda boton
-			s.height += q.btnheight			# Calcula altura total
+			s.but += [q]				# Guarda boton
+			s.height += q.btnheight		# Calcula altura total
 
-		s.a = s.cx-s.width/2					# posx
-		s.b = s.cy-s.height/2  -(24 * s.dpi)	# posy WHY THAT 24
-		s.c = s.width							# anchura
-		s.d = s.height							# altura
+		s.a = s.cx-s.width/2				# posx
+		s.b = s.cy-s.height/2  -(24 * s.dpi)	# posy WHA THE HELL THAT 54 IS
+		s.c = s.width						# anchura
+		s.d = s.height						# altura
 
 
 	def pinta(s):
@@ -214,14 +184,14 @@ if __name__ == "__main__":
 	pg.display.set_caption("BUTONIFY V"+VERSION)
 	pg.display.flip()
 
+	print("IN")
 
-	bus = [	{ "text":"FM N","value":1,"hight":False},
-			{ "text":"FM W","value":2,"hight":False},
-			{ "text":"AM","value":3,"hight":False},
-			{ "text":"USB","value":4,"hight":True},
-			{ "text":"LSB","value":5,"hight":False}
-	]
+	#x = buton(sf,"BOTONN",(50,130,220))
+	#x.posx = 300
+	#x.posx = 200
+	#x.pinta(False)
 
+	bus = [("FM N",1,False),("FM W",2,False),("AM",3,False),("USB",4,False),("LSB",5,False)]
 	m = menu()
 	m.width = 300
 	m.init(sf,bus,(100,100,200))
@@ -230,9 +200,7 @@ if __name__ == "__main__":
 
 	print("PRESS USB TO EXIT")
 	k = None
-	clk = pg.time.Clock()
 	while k == None or k.texto != "USB":
-		clk.tick(30)
 		k = m.selecciona()
 		if k != None : print(k.texto)
 		m.borra((10,10,50))

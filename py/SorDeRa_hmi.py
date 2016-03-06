@@ -13,6 +13,8 @@ import struct as st
 import math as m
 import random
 import pickle
+import signal as sg
+import numpy as np
 import butonify
 import SorDeRa_sdr as logic
 
@@ -156,6 +158,8 @@ ma = -100
 mi = 100
 
 menusf = ""
+
+ch = None
 
 def FFT_frame(sock,sf):
 	global py,pydx,fft_media
@@ -317,7 +321,6 @@ def calc_dev():
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
 	if REAL: sdr.set_dev(m.trunc(-dev))	# set dev
 
-
 def calc_bw():
 	global xbw,bw,maxbw
 	global bwlabel
@@ -336,7 +339,6 @@ def calc_bw():
 	txt = str(bw)
 	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
 	if REAL: sdr.set_bw(bw)									# set bw
-
 
 def calc_freq(posx,posy):
 	global fqc
@@ -366,7 +368,6 @@ def calc_freq(posx,posy):
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 	refreshfq = True
 
-
 def calc_sq(posy):
 	global xsq,sq
 	global sdr
@@ -376,25 +377,27 @@ def calc_sq(posy):
 	sq =  m.trunc( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
-	if REAL: sdr.set_sq(sq+15.25)	# 15 for que si
-
+	if REAL: sdr.set_sq(sq+(20.0/azoom))#+15.25)	# 15 for que si
 
 def demod_mode():
 	global mn,opt,xdev
 	global tmode
 
-	b = [("AUTO",10),("AM",0),("FM N",1),("FM W",3),("FM ST",4),("USB",2),("LSB",2)]
-	bus = []
+	b = [ 	{"text":"AUTO","value":10},
+			{"text":"AM","value":0},
+			{"text":"FM N","value":1},
+			{"text":"FM W","value":3},
+			{"text":"FM ST","value":4},
+			{"text":"USB","value":2},
+			{"text":"LSB","value":2}
+	]
 	for t in b:	
-		k = False
-		if tmode == t[1]: k = True
-		bus.append((t[0],t[1],k))
+		if tmode == t["text"]: t["hight"] = True
+
 	mn = butonify.menu()
 	mn.width = 150
-	mn.header = "Demodulation mode"
 	mn.cx = xdev
-	mn.init(sf,bus,(200,130,0))
-
+	mn.init(sf,b,(0,0,0),"Demod mode")
 
 def demod_mode_response():
 	global mn,opt
@@ -406,12 +409,6 @@ def demod_mode_response():
 	mode 	= opt.value
 	modelabel = ftbw.render(tmode, 0, MODECOLOR,BGCOLOR)	# Pinta el label del modo
 
-	#if tmode == "FM W":
-	#	sdr.set_aud_rate(48000)
-	#	maxbw = SAMPLERATE/2
-	#else:
-	#	sdr.set_aud_rate(audrate)
-	#	maxbw = audrate/2
 	calc_bw()
 	if REAL: 
 		#sdr.set_decimation(decimation)
@@ -419,24 +416,21 @@ def demod_mode_response():
 	mn = None
 	opt = None
 
-
 def demod_menu():
 	global mn,tmode
 	global rec
 
 	bus = []
-	bus += [("Mode: "+tmode,1)]
-	if rec:
-		bus += [("Rec: ON",2)]
-	else:
-		bus += [("Rec",2)]
-	bus += [("Back",0)]
+	bus += [ {"type":"Switch","text":"Mode","text2":tmode,"value":1}]
+	bus += [ {"type":"Switch","text":"Rec","value":2} ]
+	if rec:	bus[1]["text2"]="ON"
+	else:	bus[1]["text2"]="OFF"
+	bus += [{"text":"Back","value":0}]
 
 	mn = butonify.menu()
 	mn.cx = xdev
-	mn.width = 150
-	mn.header = "Demodulator"
-	mn.init(sf,bus,(100,100,100))
+	mn.width = 200
+	mn.init(sf,bus,(0,0,0),"Demodulator")
 
 def demod_menu_response():
 	global mn,opt,retf
@@ -493,46 +487,33 @@ def attend_mouse(sf):
 				calc_bw()
 				continue
 
-
 def fft_menu(refresh = False):
 	global mn
 
 	b = []
-
-	t = "OFF"
-	if linecancel_enable: t = "ON"
-	b += [( "Cancelation:"+t, 1, False )]
-
-	t = "OFF"
-	if fftfill_enable: t = "ON"
-	b += [( "Fill:     "+t, 1, False )]
-
-	t = "OFF"
-	if maxpts_enable: t = "ON"
-	b += [( "Peak:     "+t, 2, False)]
-
-	t = "OFF"
-	if maxdecay_enable: t = "ON"
-	b += [( "Decay:    "+t, 3, False)]
-
-	t = "OFF"
-	if detect_enable: t = "ON"
-	b += [( "Detect:   "+t, 4, False)]
-
-	t = "OFF"
-	if azoom_enable: t = "ON"
-	b += [( "AutoZOOM: "+t, 5, False)]
-
-	b += [( "Back", 0, False)]
-
+	b += [ {"text":"Cancelation", "value":1 }]
+	b += [ {"text":"Fill", "value":1 }]
+	b += [ {"text":"Peak", "value":2 }]
+	b += [ {"text":"Decay", "value":3 }]
+	b += [ {"text":"Detect", "value":4}]
+	b += [ {"text":"AutoZOOM", "value":5 }]
+	for i in b:
+		i["type"]	= "Switch"
+		i["text2"]	= "OFF"
+	if linecancel_enable: 	b[0]["text2"] = "ON"
+	if fftfill_enable: 		b[1]["text2"] = "ON"
+	if maxpts_enable: 		b[2]["text2"] = "ON"
+	if maxdecay_enable: 	b[3]["text2"] = "ON"
+	if detect_enable: 		b[4]["text2"] = "ON"
+	if azoom_enable: 		b[5]["text2"] = "ON"
+	b += [ {"text":"Back", "value":0}]
 
 	mn = butonify.menu()
-	mn.width = 150
-	mn.cx = FFTANCHO - 75
-	mn.header = "FFT Menu"
+	mn.width 	= 200
+	mn.cx 		= FFTANCHO - 100
+	mn.header 	= "FFT Menu"
 	if refresh: mn.frame = 36 # no scroll
-	mn.init(sf,b,(100,100,200))
-
+	mn.init(sf,b,(0,0,0),"FFT Menu")
 
 def fft_menu_response():
 	global mn,opt
@@ -550,16 +531,19 @@ def fft_menu_response():
 		mn = None
 		fft_menu(True)
 
-
 def main_menu():
 	global mn
 
-	b = [("Upper window: FFT",1),("Lower window: None",2),("Frontend config",3),("Back",4)]
+	b = [ 	{"type":"Switch","text":"Upper window","text2":"FFT","value":1},
+			{"type":"Switch","text":"Lower window","text2":"None","value":2},
+			{"text":"Frontend config","value":3},
+			{"text":"Back","value":4}
+	]
 	mn = butonify.menu()
-	mn.width = 200
-	mn.cx = FFTANCHO - 100
+	mn.width = 300
+	mn.cx = FFTANCHO - 150
 	mn.header = "Main"
-	mn.init(sf,b,(100,100,200))
+	mn.init(sf,b,(0,0,0),"Menu")
 
 def main_menu_response():
 	global mn,opt,retf
@@ -572,8 +556,6 @@ def main_menu_response():
 	if opt.value == 4: 	# EXIT
 		mn = None
 		opt = None
-
-
 
 def pantalla_init():
 	global bw, fq
@@ -613,8 +595,10 @@ def pantalla_init():
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
 
-	return sf
+	# Icono aplicación
+	pg.display.set_icon(menusf)
 
+	return sf
 
 def pantalla_refresh(sf):
 	global pts,mpts
@@ -724,7 +708,6 @@ def pantalla_refresh(sf):
 	frame = (frame % FPS) +1	
 	count += 1
 
-
 if __name__ == "__main__":
 
 	xm = 0
@@ -763,7 +746,7 @@ if __name__ == "__main__":
 		sdr.set_sq(sq)
 
 		print("[+] Arrancando logica")
-		#os.spawnl(os.P_DETACH, "aplay -r 48000 -f FLOAT_LE /tmp/SOUNDOUT")
+		os.spawnl(None, "/usr/bin/pulseaudio -k")
 		sdr.start()
 
 	print("[+] Generando ventana")
@@ -774,12 +757,12 @@ if __name__ == "__main__":
 	calc_freq(0,0)
 	calc_sq(FFTALTO/2)
 	opt = butonify.buton()
-	opt.value = mode
-	opt.init(sf,tmode,(0,0,0))
+	opt.init(sf,{"text":tmode,"value":mode})
 	demod_mode_response()
 
 	print("[+] Entrando a bucle principal")
 	refreshfq = True
+
 	while not SALIDA:
 		clk.tick(FPS)
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
