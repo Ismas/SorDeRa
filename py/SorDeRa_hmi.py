@@ -69,7 +69,8 @@ tframe 	= 0
 count 	= 0
 
 # GFX
-MENUIMG = "gfx/menu.png"
+MENUIMG 	= "gfx/menu.png"
+STEREOIMG 	= "gfx/stereo.png"
 
 # Network
 ADDR_FFT = ('127.0.0.1',42421)
@@ -157,7 +158,8 @@ SALIDA 	= False
 ma = -100
 mi = 100
 
-menusf = ""
+stereosf = None
+menusf = None
 
 ch = None
 
@@ -409,6 +411,8 @@ def demod_mode_response():
 	mode 	= opt.value
 	modelabel = ftbw.render(tmode, 0, MODECOLOR,BGCOLOR)	# Pinta el label del modo
 
+	if opt.value != "FM ST": pgd.box(top_sf,(250,0,40,TOPALTO),BGCOLOR) # Borra preventivamente el icono de stereo
+
 	calc_bw()
 	if REAL: 
 		#sdr.set_decimation(decimation)
@@ -562,7 +566,7 @@ def pantalla_init():
 	global bwlabel, fqlabel
 	global ftbw,ftdev1,ftdev2,ftqc
 	global fft_sf, top_sf
-	global menusf
+	global menusf,stereosf
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
@@ -595,6 +599,9 @@ def pantalla_init():
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
 
+	# icono stereo
+	stereosf = pg.image.load(STEREOIMG)
+
 	# Icono aplicación
 	pg.display.set_icon(menusf)
 
@@ -611,7 +618,7 @@ def pantalla_refresh(sf):
 	global fft_sf,top_sf
 	global sq,xsq,asq,smval,smvaladj
 	global frame, count
-	global menusf
+	global menusf,stereosf
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
@@ -701,6 +708,13 @@ def pantalla_refresh(sf):
 			pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)		#Borra botón rojo izquierda smeter
 		if frame == 1:
 			pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, tc)			#Pinta botón del color del smeter
+
+	# Pinta STEREO si STEREO
+	if tmode == "FM ST":
+		if (sdr.probe_st.level() > 0.5 ): 
+			top_sf.blit(stereosf,(250,8))
+		else:
+			pgd.box(top_sf,(250,0,40,TOPALTO),BGCOLOR)
 
 	# Flipea/Vuelca la pantalla
 	pg.display.flip()							
