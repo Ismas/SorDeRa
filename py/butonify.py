@@ -74,11 +74,10 @@ class buton():
 
 	def pinta(s,sel):	# Sel: seleccionado o no
 						# NOS PASAMOS A MATERIAL DESIGN
-
 		if sel:	col = (255,255,255)
 		else: 	col = s.BTNFONDO
 		s.sf.fill(col,(s.posx,s.posy,s.width,s.btnheight),0)				# Pinta caja
-		pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy+s.btnheight)-1,s.BTNSEP)			# Pinta separador
+		pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy)-1,s.BTNSEP)			# Pinta separador
 																				# Pinta icono
 		s.sft = s.sff.render(s.texto, 1, (0,0,0), col)							# Pinta texto
 		s.sf.blit(s.sft, (s.posx+s.txtizq, s.posy+s.btnheight/2-s.sft.get_size()[1]/2))	# Render texto
@@ -131,6 +130,7 @@ class menu():
 		s.sf = sf 					
 		s.bts = bts
 		s.col = c
+		s.header = header
 
 		if not s.cx: s.cx = s.sf.get_size()[0]/2 						# Calcula posición centrito X
 		if not s.cy: s.cy = s.sf.get_size()[1]/2 - len(s.bts)*s.height/2 #- s.tituloheight/2	

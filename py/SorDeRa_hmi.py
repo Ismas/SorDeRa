@@ -16,9 +16,9 @@ import pickle
 import signal as sg
 import numpy as np
 import butonify
-import SorDeRa_sdr as logic
+#import SorDeRa_sdr as logic
 
-REAL = True
+REAL = False
 
 linecancel_enable	= True
 maxpts_enable 	= False
@@ -27,22 +27,27 @@ azoom_enable 	= True
 fftfill_enable	= False
 detect_enable	= False
 
+# Main Window
+ANCHO		= 1280
+ALTO		= 850
+MAIN_SIZE	= (ANCHO,ALTO)
+CAPTION     = "SorDeRa SDR  fps: "
+FPS 		= 30
+
 # Cabecera
 TOPANCHO	= 1280
 TOPALTO		= 50
 TOP_SIZE	= (TOPANCHO,TOPALTO)
 
-# Main Window
-ANCHO		= 1280
-ALTO		= 600
-MAIN_SIZE	= (ANCHO,ALTO)
-
-# FFT Window
+# FFT (upper) Window
 FFTANCHO    = 1280
 FFTALTO     = 500
 FFT_SIZE 	= (FFTANCHO, FFTALTO)
-CAPTION     = "SorDeRa SDR  fps: "
-FPS 		= 30
+
+# Waterfall (down) Windows
+DWNANCHO	= 1280
+DWNALTO		= 300
+DWN_SIZE	= (DWNANCHO,DWNALTO)
 
 #Colrs
 BGCOLOR     = (10, 10, 50)
@@ -101,6 +106,7 @@ fqlabel1    = fqlabel2 = ""
 xbw 	= 23
 bw 		= 3150
 maxbw	= audrate/2
+xmaxbw	= 60			# <- TODO calcular esto
 bwlabel = 0		#surface
 
 #SQ
@@ -115,11 +121,13 @@ modex = 0
 modelabel = ""
 
 # FFT
+yy		= []	# Datos de este frame
+py 		= []	# valores puntos en pantalla este fane
 numx	= []
-py 		= []	# valores puntos
-pydx 	= 0		# indice matriz para media
+pm		= []	# Media de puntos
 maxpts  = []	# maximos
-mpts 	= []
+mpts 	= []	# maximos en pantalla
+pydx 	= 0		# indice matriz para media
 fft_media = 10     # cantidad de media
 
 dtc 	 = []	# Detect
@@ -163,8 +171,30 @@ menusf = None
 
 ch = None
 
-def FFT_frame(sock,sf):
-	global py,pydx,fft_media
+def FFT_get():
+	global yy,py,pydx,pm
+	# RANGO [-10,5] -> +10 -> [0,15]
+	# 120/15 = 8 -> dBs
+	# FFTALTO/120 = 
+	#if t > ma: ma = t
+	#if t < mi: mi = t
+
+	# ADQUISICION DE DATOS
+	if (REAL):
+		for x in sdr.fft_probe.level():	yy[x] = m.log10(i)	# Leo DBs y logaritmo
+	else:	
+		for x in range(VEC_SZ):	yy[x] = random.random() 
+	py[pydx] 	= yy 									# Almaceno dBs
+	for x in range(VEC_SZ):
+		t = 0.0
+		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
+		pm[x] = (t / fft_media) 						# Media
+			
+	pydx = (pydx+1) % fft_media					# Siguiente para media
+
+
+def FFT_frame(sf):
+	global yy,py,pydx,pm,fft_media
 	global pts,maxpts,mpts
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
@@ -174,22 +204,6 @@ def FFT_frame(sock,sf):
 	global tframe
 	global smval,xdev
 	global sdr
-
-	# ADQUISICION DE DATOS
-	y 	= []	
-	if (REAL):
-		y = sdr.fft_probe.level() 
-	else:
-		for x in range(VEC_SZ):	y += [ random.random() /1000]
-
-	#for x in range(VEC_SZ):
-		#t = 20*m.log10(y[x])
-
-	# RANGO [-10,5] -> +10 -> [0,15]
-	# 120/15 = 8 -> dBs
-	# FFTALTO/120 = 
-	#if t > ma: ma = t
-	#if t < mi: mi = t
 
 
 	# BUCLE PRINCIPAL CALCULOS
@@ -203,10 +217,9 @@ def FFT_frame(sock,sf):
 	tope 	= 0
 	dtcm	= 0
 	smval 	= -10.0
+
 	for x in range(VEC_SZ):
-		py[pydx][x] = m.log10(y[x]) 					# Almaceno dBs
-		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
-		t /= fft_media
+		t = pm[x]
 
 		# Captura media de linecancel
 		if linecancel_enable and x == VEC_SZ/2: tcancel = t
@@ -234,7 +247,7 @@ def FFT_frame(sock,sf):
 			mpts += [(x,maxpts[x]+1)]
 
 	# LINECANCEL
-	if linecancel_enable:
+	if REAL and linecancel_enable:
 		sdr.set_lai(-0.0032)
 		sdr.set_laj(-0.0034)
 
@@ -304,8 +317,17 @@ def FFT_frame(sock,sf):
 	tframe	+= 1
 	pts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]						#cierro para fill
 	if maxpts_enable: 	mpts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]	#cierro para fill
-	pydx 	= (pydx+1) % fft_media
 	#print(azoom)
+
+
+def waterfall(sf):
+	global pm
+
+	sf.scroll(0,1)				# Empuja parriba a un pixer por frame, de momento
+	for x in range(VEC_SZ):		# Pinta los puntos
+		t = pm[x]*100
+		pg.gfxdraw.pixel(sf,x,0,(0,t,t))
+
 
 def calc_dev():
 	global	xdev,dev
@@ -449,7 +471,7 @@ def demod_menu_response():
 	if opt.value == 2:				# grabar
 		rec = not rec 				# pinta el punto en fft_frame
 		if not rec: pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)	#Borra botón rojo izquierda smeter
-		sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
+		if REAL: sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
 
 	mn = None
 
@@ -481,15 +503,21 @@ def attend_mouse(sf):
 				calc_dev()
 				continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 3) or 
-			(evt.type == pg.MOUSEMOTION and evt.buttons[2] == 1) ) :										# boton derecho
+			(evt.type == pg.MOUSEMOTION and evt.buttons[2] == 1) ) :					# boton derecho
+			#print(m.fabs(evt.pos[0]-xdev-xbw),evt.pos[1]) 				# ancho de banda
+	
 			if m.fabs(evt.pos[0]-xdev) < 20 and m.fabs(evt.pos[1]-BWY-40) < 20 :		# Menu demodulacion
 				demod_menu()
 				retf = demod_menu_response
 				continue
-			if evt.pos[1] > TOPALTO+BWY :				# ancho de banda
+			if m.fabs(evt.pos[0]-xdev) < xmaxbw and evt.pos[1] > TOPALTO+BWY :				# ancho de banda
 				xbw = m.fabs(evt.pos[0]-xdev)			
 				calc_bw()
 				continue
+			if evt.pos[1] < TOPALTO+BWY:
+				retf = fft_menu_response					# Sino, menu del FFT
+				fft_menu()
+
 
 def fft_menu(refresh = False):
 	global mn
@@ -514,9 +542,10 @@ def fft_menu(refresh = False):
 
 	mn = butonify.menu()
 	mn.width 	= 200
-	mn.cx 		= FFTANCHO - 100
+	mn.cx 		= pg.mouse.get_pos()[0]
+	mn.cy 		= TOPALTO+250
 	mn.header 	= "FFT Menu"
-	if refresh: mn.frame = 36 # no scroll
+	if refresh: mn.frame = 48 # no scroll
 	mn.init(sf,b,(0,0,0),"FFT Menu")
 
 def fft_menu_response():
@@ -537,9 +566,10 @@ def fft_menu_response():
 
 def main_menu():
 	global mn
+	global tupper,tdown
 
-	b = [ 	{"type":"Switch","text":"Upper window","text2":"FFT","value":1},
-			{"type":"Switch","text":"Lower window","text2":"None","value":2},
+	b = [ 	{"type":"Switch","text":"Upper window","text2":tupper,"value":1},
+			{"type":"Switch","text":"Lower window","text2":tdown,"value":2},
 			{"text":"Frontend config","value":3},
 			{"text":"Back","value":4}
 	]
@@ -551,10 +581,11 @@ def main_menu():
 
 def main_menu_response():
 	global mn,opt,retf
+	global tupper,tdown
 
 	if opt.value == 1: 	# FFT MENU
-		retf = fft_menu_response
-		fft_menu()
+		#retf = fft_menu_response
+		#fft_menu()
 		return
 
 	if opt.value == 4: 	# EXIT
@@ -565,7 +596,7 @@ def pantalla_init():
 	global bw, fq
 	global bwlabel, fqlabel
 	global ftbw,ftdev1,ftdev2,ftqc
-	global fft_sf, top_sf
+	global fft_sf, top_sf, dwn_sf
 	global menusf,stereosf
 
 	pg.init()
@@ -578,6 +609,7 @@ def pantalla_init():
 	# Surfaces TOP & FFT (subsurfaces del main)
 	top_sf= sf.subsurface((0,0,TOPANCHO,TOPALTO))		
 	fft_sf= sf.subsurface((0,TOPALTO,FFTANCHO,FFTALTO))
+	dwn_sf= sf.subsurface((0,TOPALTO+FFTALTO,FFTANCHO,DWNALTO))
 
 	#print(pg.font.get_fonts())
 
@@ -589,9 +621,9 @@ def pantalla_init():
 	# pinta smeter
 	pgd.box(top_sf,(smx,0,sml,TOPALTO),(0,0,0))
 	fsm = pg.font.SysFont('ubuntumono',14)						
-	fsq = fsm.render(' S 1  3  5  7  9 +20 +40 +60', 0, (200,200,200),(0,0,0))
+	fsq = fsm.render(' S 1  3  5  7  9 +20 +40 +60', 1, (200,200,200),(0,0,0))
 	top_sf.blit(fsq, (smx,5))													# Pinta smeter label
-	fsq = fsm.render(' ||||||||||||||||||||||||||', 0, (200,200,200),(0,0,0))
+	fsq = fsm.render(' ||||||||||||||||||||||||||', 1, (200,200,200),(0,0,0))
 	top_sf.blit(fsq, (smx,19))													# Pinta smeter guia
 	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
 
@@ -603,7 +635,7 @@ def pantalla_init():
 	stereosf = pg.image.load(STEREOIMG)
 
 	# Icono aplicación
-	pg.display.set_icon(menusf)
+	pg.display.set_icon(stereosf)
 
 	return sf
 
@@ -695,7 +727,7 @@ def pantalla_refresh(sf):
 				col = BGFQCCOLOR
 				anc = size
 			px = (TOPANCHO/2) - (lon+sp)*size/2 + (x*(size+sp)) 	# Calcula posición
-			fqclabel = ftqc.render(txt[x], 0, FQCCOLOR, col)		# pinta fqc text
+			fqclabel = ftqc.render(txt[x], 1, FQCCOLOR, col)		# pinta fqc text
 			top_sf.blit(fqclabel,(px,0))							# blit
 			if txt[x] not in ['.',','] : numx += [px]				# Almacena la coordenada del numero
 
@@ -710,7 +742,7 @@ def pantalla_refresh(sf):
 			pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, tc)			#Pinta botón del color del smeter
 
 	# Pinta STEREO si STEREO
-	if tmode == "FM ST":
+	if REAL and tmode == "FM ST":
 		if (sdr.probe_st.level() > 0.5 ): 
 			top_sf.blit(stereosf,(250,8))
 		else:
@@ -731,6 +763,8 @@ if __name__ == "__main__":
 	print("[+] ISMASRADIO (c) 2016")
 
 	print("[+] Init")
+	yy		= [ 0.0 for y in range(VEC_SZ)]
+	pm		= [ 0.0 for y in range(VEC_SZ)]
 	py 		= [[0 for y in range(VEC_SZ)] for x in range(fft_media)]		# soften matrix
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 
@@ -777,10 +811,18 @@ if __name__ == "__main__":
 	print("[+] Entrando a bucle principal")
 	refreshfq = True
 
+	upperf 	= FFT_frame			# Funcion superior
+	tupper	= "FFT"
+	downerf	= waterfall			# Funcion inferior
+	tdown	= "Waterfall"
 	while not SALIDA:
 		clk.tick(FPS)
 		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
-		FFT_frame(soc,fft_sf)
+		FFT_get()
+		# UPPER
+		upperf(fft_sf)
+		# DOWNER
+		downerf(dwn_sf)
 		pantalla_refresh(sf)
 		if mn :							# Si existe un menu, gestiona menus
 			opt = mn.selecciona()		# Lee botonera
