@@ -16,9 +16,10 @@ import pickle
 import signal as sg
 import numpy as np
 import butonify
-#import SorDeRa_sdr as logic
 
-REAL = False
+REAL = True
+
+if REAL: import SorDeRa_sdr as logic
 
 linecancel_enable	= True
 maxpts_enable 	= False
@@ -181,7 +182,8 @@ def FFT_get():
 
 	# ADQUISICION DE DATOS
 	if (REAL):
-		for x in sdr.fft_probe.level():	yy[x] = m.log10(i)	# Leo DBs y logaritmo
+		yy = []
+		for x in sdr.fft_probe.level():	yy += [m.log10(x)]	# Leo DBs y logaritmo
 	else:	
 		for x in range(VEC_SZ):	yy[x] = random.random() 
 	py[pydx] 	= yy 									# Almaceno dBs
@@ -322,10 +324,13 @@ def FFT_frame(sf):
 
 def waterfall(sf):
 	global pm
+	global azoom
 
 	sf.scroll(0,1)				# Empuja parriba a un pixer por frame, de momento
 	for x in range(VEC_SZ):		# Pinta los puntos
-		t = pm[x]*100
+		t = (3.5 + pm[x])*100
+		if t<0: 	t = 0
+		if t>255: 	t = 255
 		pg.gfxdraw.pixel(sf,x,0,(0,t,t))
 
 
