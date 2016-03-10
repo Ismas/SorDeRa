@@ -90,7 +90,7 @@ pts = [(0,0),(0,0),(0,0),(0,0)]
 #apts = pts
 
 # FQ and DEV
-xdev 	= FFTANCHO/2 - (20000/FFTANCHO)
+xdev 	= float(FFTANCHO/2 - (20000/FFTANCHO))
 dev 	= -20000
 fqc 		= 126220000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
@@ -107,6 +107,7 @@ fqlabel1    = fqlabel2 = ""
 xbw 	= 23
 bw 		= 3150
 maxbw	= audrate/2
+minipaso = 0.5/(float(SAMPLERATE/FFTANCHO)/25.0)
 xmaxbw	= 60			# <- TODO calcular esto
 bwlabel = 0		#surface
 
@@ -114,6 +115,7 @@ bwlabel = 0		#surface
 sq 		= -70
 xsq		= FFTALTO/2 
 asq		= 0.0
+possq	= (0,0)
 
 # Mode
 mode = 0
@@ -205,6 +207,7 @@ def FFT_frame(sf):
 	global refreshfq
 	global tframe
 	global smval,xdev
+	global base,mi
 	global sdr
 
 
@@ -212,6 +215,7 @@ def FFT_frame(sf):
 	t 		= 0.0
 	t2 		= FFTALTO
 	t3 		= 0
+	mi 		= 0
 	pts 	= []
 	mpts 	= []
 	smval 	= 0
@@ -234,19 +238,22 @@ def FFT_frame(sf):
 		posy = FFTALTO-(t*FFTK*azoom)-(6*FFTK*azoom)+base # Altura en el FFT
 		dtcm +=  posy / VEC_SZ 							# media para el detect (grafico)
 
-		if posy>FFTALTO : base += 1						# AUTOBASE cuando se sale por debajo
-		#if posy > t3 : t3 = posy						# AUTOBASE cuando no llega abajo
-
 		if posy < t2  : t2 = posy 						# tope superior para calcular zoom
-		pts += [(x,m.trunc( posy ))]					# compone vector draw
+		if int(posy)+base > mi: mi = int(posy)+base		# busco base
+
+		pts += [(x,int(posy)+base)]					# compone vector draw
 
 		# MAXPTS
 		if maxpts_enable and tframe > fft_media:
-			if m.trunc(posy) < maxpts[x] :	
-				maxpts[x] = m.trunc(posy)					# Calcula max
+			if int(posy) < maxpts[x] :	
+				maxpts[x] = int(posy)					# Calcula max
 			else :
 				if maxdecay_enable: maxpts[x] += 1
 			mpts += [(x,maxpts[x]+1)]
+
+	# Caluclo base
+	if mi < FFTALTO-10:	base += 1
+	if mi > FFTALTO:	base -= 1
 
 	# LINECANCEL
 	if REAL and linecancel_enable:
@@ -342,13 +349,13 @@ def calc_dev():
 
 	a = FFTANCHO/2											# media pantalla
 	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
-	fq = m.trunc(fqc + dev)
+	fq = int(fqc + dev)
 	sfq = format(fq,'010d')
 	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
 	sfq = sfq.lstrip('0.')
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
-	if REAL: sdr.set_dev(m.trunc(-dev))	# set dev
+	if REAL: sdr.set_dev(int(-dev))	# set dev
 
 def calc_bw():
 	global xbw,bw,maxbw
@@ -359,7 +366,7 @@ def calc_bw():
 
 	a = FFTANCHO/2 											# media pantalla
 	decirate= SAMPLERATE/decimation
-	bw = m.trunc((SAMPLERATE*xbw)/FFTANCHO)
+	bw = int((SAMPLERATE*xbw)/FFTANCHO)
 	if (bw >= maxbw):
 		bw = maxbw
 	if (bw < MINBW):
@@ -398,15 +405,16 @@ def calc_freq(posx,posy):
 	refreshfq = True
 
 def calc_sq(posy):
-	global xsq,sq
+	global xsq,sq,base
 	global sdr
 
-	xsq = posy - TOPALTO
-	#sq =  m.trunc( (-120*xsq/FFTALTO) )
-	sq =  m.trunc( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
+	xsq = posy - TOPALTO 
+	sq =  int( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
+
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
-	if REAL: sdr.set_sq(sq+(20.0/azoom))#+15.25)	# 15 for que si
+
+	if REAL: sdr.set_sq(sq+(9*azoom))	# 15 for que si
 
 def demod_mode():
 	global mn,opt,xdev
@@ -481,7 +489,8 @@ def demod_menu_response():
 	mn = None
 
 def attend_mouse(sf):
-	global xbw,xdev
+	global xbw,xdev,minipaso
+	global possq
 	global retf
 	global SALIDA
 
@@ -496,8 +505,8 @@ def attend_mouse(sf):
 				main_menu()
 				retf = main_menu_response														
 				continue
-			if m.fabs(evt.pos[0] - FFTANCHO) < 50  and m.fabs(evt.pos[1]-xsq-TOPALTO) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
-				calc_sq(evt.pos[1])																# squelch
+			if m.fabs(evt.pos[0] - possq[0]) < 50  and m.fabs(evt.pos[1]-possq[1]-50) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
+				calc_sq(evt.pos[1]-base)															# squelch. 
 				continue
 			# Va a ser freq
 			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1 and evt.pos[1]<TOPALTO :	# Digitos de frecuencia
@@ -522,7 +531,14 @@ def attend_mouse(sf):
 			if evt.pos[1] < TOPALTO+BWY:
 				retf = fft_menu_response					# Sino, menu del FFT
 				fft_menu()
-
+		if  ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 4): # boton rueda de enmedio
+			xdev += minipaso
+			calc_dev()
+			continue
+		if  ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 5): # boton rueda de enmedio
+			xdev -= minipaso
+			calc_dev()
+			continue
 
 def fft_menu(refresh = False):
 	global mn
@@ -653,7 +669,7 @@ def pantalla_refresh(sf):
 	global maxfill_enable, maxpts_enable, refreshfq
 	global azoom, base
 	global fft_sf,top_sf
-	global sq,xsq,asq,smval,smvaladj
+	global sq,xsq,asq,smval,smvaladj,possq
 	global frame, count
 	global menusf,stereosf
 
@@ -662,11 +678,12 @@ def pantalla_refresh(sf):
 
 	fft_sf.fill(BGCOLOR) 									# Borra BW Más rapido que reescribir.
 
+	# PINTA ESCALA
 	for x in range(12):										# Escala FFT
-		y = m.trunc(FFTALTO - (x*(FFTALTO/12))*azoom) + base
+		y = int(FFTALTO - (x*(FFTALTO/12))*azoom) + base
 		if y > 0 :
 			pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
-			lb = ftdev1.render(str((12-x)*-10), 0, FQCCOLOR,BGCOLOR) # pinta dev text
+			lb = ftdev1.render(str((12-x)*-10), 0, ESCCOLOR,BGCOLOR) # pinta dev text
 			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
 	# Pinta BW
@@ -676,7 +693,7 @@ def pantalla_refresh(sf):
 		else:					tm = xdev-xbw
 		fft_sf.fill(BWCOLOR2,(tm,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
 		pgd.rectangle(fft_sf,(tm,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(fft_sf,xdev,0,FFTALTO,DEVCOLOR)						# Pinta dev
+	pgd.vline(fft_sf,int(xdev),0,FFTALTO,DEVCOLOR)					# Pinta dev
 
 	# PINTA MAX
 	if maxpts_enable:												# Pintta puntos de max
@@ -706,9 +723,12 @@ def pantalla_refresh(sf):
 	tsq = 0
 	if REAL: tsq = sdr.probe_sq.level()				# Lee el nivel para ver si está levantado el squelch
 	if 	tsq != asq: tc = (0,200,0)			# Si está levantado pinta verde
-	pgd.hline(fft_sf,0,FFTANCHO,xsq, tc)
+	pgd.hline(fft_sf,0,FFTANCHO,xsq+base, tc)
 	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
-	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-12))		# Pinta bw label
+	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-12+base))		# Pinta bw label
+
+	possq = (FFTANCHO-fsq.get_size()[0]+25,xsq-12+base+12)	# Guardo posicion para el botón
+	#pgd.circle(fft_sf,possq[0],possq[1],50,(200,200,200))
 	asq = tsq
 
 	# pinta smeter
@@ -821,19 +841,19 @@ if __name__ == "__main__":
 	downerf	= waterfall			# Funcion inferior
 	tdown	= "Waterfall"
 	while not SALIDA:
+		if mn :							# Si existe un menu, gestiona menus
+			opt = mn.selecciona()		# Lee botonera
+			if opt: retf()				# Si se ha devuelto valor, salimos a la función de retorno
+		else:
+			attend_mouse(fft_sf)		# Si no hay menu, botones estandard.
 		clk.tick(FPS)
-		pg.display.set_caption(CAPTION + str(m.trunc(clk.get_fps())))
+		pg.display.set_caption(CAPTION + str(int(clk.get_fps())))
 		FFT_get()
 		# UPPER
 		upperf(fft_sf)
 		# DOWNER
 		downerf(dwn_sf)
 		pantalla_refresh(sf)
-		if mn :							# Si existe un menu, gestiona menus
-			opt = mn.selecciona()		# Lee botonera
-			if opt: retf()				# Si se ha devuelto valor, salimos a la función de retorno
-		else:
-			attend_mouse(fft_sf)		# Si no hay menu, botones estandard.
 
 	print("[+] Guardando estado")
 	try:
