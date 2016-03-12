@@ -249,10 +249,10 @@ def FFT_frame(sf):
 				maxpts[x] = int(posy)					# Calcula max
 			else :
 				if maxdecay_enable: maxpts[x] += 1
-			mpts += [(x,maxpts[x]+1)]
+			mpts += [(x,maxpts[x]+1+base)]
 
 	# Caluclo base
-	if mi < FFTALTO-10:	base += 1
+	if mi < FFTALTO-30:	base += 1
 	if mi > FFTALTO:	base -= 1
 
 	# LINECANCEL
@@ -318,7 +318,7 @@ def FFT_frame(sf):
 				calc_sq(xsq+TOPALTO)
 		if t2<(YTOP*0.95) : 
 			if azoom>1: 
-				azoom -= 0.01
+				azoom -= 0.03
 				calc_sq(xsq+TOPALTO)
 
 	# Calculos finales
@@ -423,10 +423,10 @@ def demod_mode():
 	b = [ 	{"text":"AUTO","value":10},
 			{"text":"AM","value":0},
 			{"text":"FM N","value":1},
-			{"text":"FM W","value":3},
-			{"text":"FM ST","value":4},
 			{"text":"USB","value":2},
-			{"text":"LSB","value":2}
+			{"text":"LSB","value":3},
+			{"text":"FM W","value":4},
+			{"text":"FM ST","value":5}
 	]
 	for t in b:	
 		if tmode == t["text"]: t["hight"] = True
@@ -434,6 +434,7 @@ def demod_mode():
 	mn = butonify.menu()
 	mn.width = 150
 	mn.cx = xdev
+	mn.cy = 300
 	mn.init(sf,b,(0,0,0),"Demod mode")
 
 def demod_mode_response():
@@ -687,13 +688,21 @@ def pantalla_refresh(sf):
 			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
 	# Pinta BW
+	txdev	= xdev
+	txbw 	= 2*xbw
+	tcodo 	= txdev - txbw/2
 	if 	tmode != "FM W" and tmode != "FM ST":
-		if 		tmode == "USB":	tm = xdev
-		elif 	tmode == "LSB":	tm = xdev-xbw*2	
-		else:					tm = xdev-xbw
-		fft_sf.fill(BWCOLOR2,(tm,BWY,xbw*2,FFTALTO-BWY),0) 			# Pinta BW
-		pgd.rectangle(fft_sf,(tm,BWY,xbw*2,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(fft_sf,int(xdev),0,FFTALTO,DEVCOLOR)					# Pinta dev
+		if 	tmode == "USB":		
+			txbw /= 2	
+			txdev = xdev + txbw
+			tcodo = txdev
+		elif tmode == "LSB": 	
+			txbw /= 2	
+			txdev = xdev + txbw	
+			tcodo = txdev - txbw
+		fft_sf.fill(BWCOLOR2,(tcodo,BWY,txbw,FFTALTO-BWY),0) 		# Pinta BW
+		pgd.rectangle(fft_sf,(tcodo,BWY,txbw,FFTALTO-BWY),BWCOLOR)
+	pgd.vline(fft_sf,int(txdev),0,FFTALTO,DEVCOLOR)					# Pinta linea dev
 
 	# PINTA MAX
 	if maxpts_enable:												# Pintta puntos de max
@@ -713,10 +722,10 @@ def pantalla_refresh(sf):
 
 	# PINTA DEV
 	if 	tmode != "FM W" and tmode != "FM ST":
-		fft_sf.blit(bwlabel,  (xdev-bwlabel.get_size()[0]/2,BWY+2))		# Pinta bw label
-		fft_sf.blit(fqlabel1, (xdev-pleft,BWY-22))						# Pinta dev label 
-		fft_sf.blit(fqlabel2, (xdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
-	fft_sf.blit(modelabel,(xdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
+		fft_sf.blit(bwlabel,  (txdev-bwlabel.get_size()[0]/2,BWY+2))	# Pinta bw label
+		fft_sf.blit(fqlabel1, (txdev-pleft,BWY-22))						# Pinta dev label 
+		fft_sf.blit(fqlabel2, (txdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
+	fft_sf.blit(modelabel,(txdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
 
 	# pinta Sqelch
 	tc 	= SQCOLOR

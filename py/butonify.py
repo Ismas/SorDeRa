@@ -77,7 +77,7 @@ class buton():
 		if sel:	col = (255,255,255)
 		else: 	col = s.BTNFONDO
 		s.sf.fill(col,(s.posx,s.posy,s.width,s.btnheight),0)				# Pinta caja
-		pgd.hline(s.sf,s.posx,s.posx+s.width,math.trunc(s.posy)-1,s.BTNSEP)			# Pinta separador
+		pgd.hline(s.sf,int(s.posx),int(s.posx+s.width),int(s.posy)-1,s.BTNSEP)			# Pinta separador
 																				# Pinta icono
 		s.sft = s.sff.render(s.texto, 1, (0,0,0), col)							# Pinta texto
 		s.sf.blit(s.sft, (s.posx+s.txtizq, s.posy+s.btnheight/2-s.sft.get_size()[1]/2))	# Render texto
