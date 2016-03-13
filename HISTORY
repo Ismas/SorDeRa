@@ -119,4 +119,12 @@
 	Ajuste de dev con boton medio del raton
 
 20160311
-	USB y LSB funcionales. Falta ajustar visualización
+	USB y LSB funcionales. 
+		TODO Falta ajustar visualización USB y LSB. 
+
+20160312
+	AUTORANGO en Waterfall
+	Hora en waterfall
+	Menu de waterfall para el autorango.
+		TODO Bug en los menus: Son todos relativos a FFT_SF y deberian serlo a sus respectivas ventanas
+	Arreglado boton linecancel

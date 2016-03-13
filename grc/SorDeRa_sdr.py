@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Sat Mar 12 13:26:08 2016
+# Generated: Sun Mar 13 15:32:56 2016
 ##################################################
 
 from gnuradio import analog
@@ -38,9 +38,9 @@ class SorDeRa_sdr(gr.top_block):
         self.sq = sq = -700
         self.sb_pos = sb_pos = ((bw*mode==2)-(bw*mode==3))
         self.rec = rec = 1
-        self.laj_0 = laj_0 = -0.0034
+        self.laj_0 = laj_0 = 0
         self.laj = laj = 0
-        self.lai_0 = lai_0 = -0.0032
+        self.lai_0 = lai_0 = 0
         self.lai = lai = 0
         self.freq = freq = 9850000
         self.dev = dev = 19000

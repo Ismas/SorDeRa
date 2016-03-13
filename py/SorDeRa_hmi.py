@@ -13,7 +13,7 @@ import struct as st
 import math as m
 import random
 import pickle
-import signal as sg
+import datetime
 import numpy as np
 import butonify
 
@@ -21,12 +21,16 @@ REAL = True
 
 if REAL: import SorDeRa_sdr as logic
 
+# AUTOMATISMOS FFT
 linecancel_enable	= True
 maxpts_enable 	= False
 maxdecay_enable = False
 azoom_enable 	= True
 fftfill_enable	= False
 detect_enable	= False
+
+# Automatismos waterfall
+autorange_enable = True
 
 # Main Window
 ANCHO		= 1280
@@ -124,15 +128,20 @@ modex = 0
 modelabel = ""
 
 # FFT
-yy		= []	# Datos de este frame
 py 		= []	# valores puntos en pantalla este fane
-numx	= []
 pm		= []	# Media de puntos
+numx	= []
 maxpts  = []	# maximos
 mpts 	= []	# maximos en pantalla
 pydx 	= 0		# indice matriz para media
 fft_media = 10     # cantidad de media
 
+# Waterfall
+contraste	= -100
+wfrango		= 100
+wfframe		= 0
+
+# DETECT
 dtc 	 = []	# Detect
 DTCTHRES = 1.15 # Threshold
 
@@ -175,35 +184,76 @@ menusf = None
 ch = None
 
 def FFT_get():
-	global yy,py,pydx,pm
+	global py,pydx,pm
+	global linecancel_enable,lci,lcj,testi,testj,lcs,alc
 	# RANGO [-10,5] -> +10 -> [0,15]
 	# 120/15 = 8 -> dBs
 	# FFTALTO/120 = 
 	#if t > ma: ma = t
 	#if t < mi: mi = t
 
+		#print(m.fabs(tcancel+alc),testi,testj)
+		#if testi:		
+		#	if tcancel > alc : 
+		#		lcs = -lcs		# vamos mal, invierto signo
+		#		lci += 0.0001 * lcs 
+		#	else:				# si no vamos mal
+		#		if m.fabs(tcancel+alc) > 0.1:		# si 
+		#		print("en testi")
+		#		if tcancel > alc:  
+		#			print("sumo")
+		#			lci += 0.0001					# suma
+		#		else:								# si no
+		#			print("resto")
+		#			lci -= 0.0001	# si es mayor que antes, resta
+		#			alc = tcancel 					# lo guardamos como bueno
+		#		sdr.set_lai(lci)
+		#	else:
+		#		testi = False 						# Si el pico no es chungo paso a siguiente fase
+		#		testj = True
+		#if testj:		
+		#	if m.fabs(tcancel+alc) > 0.1:
+		#		if tcancel > alc:  lcj -= 0.0001
+		#		else:		
+		#			lcj += 0.0001
+		#			alc = tcancel
+		#		sdr.set_laj(lcj)
+		#	else:
+		#		testi = False 	# Fin comprobacion
+		#		testj = False
+
+	#print(lcj)
+
+	# LINECANCEL
+	if REAL:
+		if linecancel_enable:
+			sdr.set_lai(-0.0032)
+			sdr.set_laj(-0.0034)
+		else:
+			sdr.set_lai(0)
+			sdr.set_laj(0)
+
+
 	# ADQUISICION DE DATOS
 	if (REAL):
-		yy = []
-		for x in sdr.fft_probe.level():	yy += [m.log10(x)]	# Leo DBs y logaritmo
+		i = 0
+		for x in sdr.fft_probe.level():
+			py[pydx][i] = m.log10(x)
+			t = 0											# Leo DBs y logaritmo y añado
+			for x2 in range(fft_media):	t += py[x2][i]		# media de los fft_media valores
+			pm[i] = (t / fft_media) 						# Media
+			i += 1
 	else:	
-		for x in range(VEC_SZ):	yy[x] = random.random() 
-	py[pydx] 	= yy 									# Almaceno dBs
-	for x in range(VEC_SZ):
-		t = 0.0
-		for x2 in range(fft_media):	t += py[x2][x]		# media de los fft_media valores
-		pm[x] = (t / fft_media) 						# Media
+		for x in range(VEC_SZ):	py[pydx][x] = random.random() 
 			
 	pydx = (pydx+1) % fft_media					# Siguiente para media
 
-
 def FFT_frame(sf):
-	global yy,py,pydx,pm,fft_media
+	global py,pydx,pm,fft_media
 	global pts,maxpts,mpts
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
 	global dtc,detect_enable
-	global linecancel_enable,lci,lcj,testi,testj,lcs,alc
 	global refreshfq
 	global tframe
 	global smval,xdev
@@ -255,44 +305,6 @@ def FFT_frame(sf):
 	if mi < FFTALTO-30:	base += 1
 	if mi > FFTALTO:	base -= 1
 
-	# LINECANCEL
-	if REAL and linecancel_enable:
-		sdr.set_lai(-0.0032)
-		sdr.set_laj(-0.0034)
-
-
-		#print(m.fabs(tcancel+alc),testi,testj)
-		#if testi:		
-		#	if tcancel > alc : 
-		#		lcs = -lcs		# vamos mal, invierto signo
-		#		lci += 0.0001 * lcs 
-		#	else:				# si no vamos mal
-		#		if m.fabs(tcancel+alc) > 0.1:		# si 
-		#		print("en testi")
-		#		if tcancel > alc:  
-		#			print("sumo")
-		#			lci += 0.0001					# suma
-		#		else:								# si no
-		#			print("resto")
-		#			lci -= 0.0001	# si es mayor que antes, resta
-		#			alc = tcancel 					# lo guardamos como bueno
-		#		sdr.set_lai(lci)
-		#	else:
-		#		testi = False 						# Si el pico no es chungo paso a siguiente fase
-		#		testj = True
-		#if testj:		
-		#	if m.fabs(tcancel+alc) > 0.1:
-		#		if tcancel > alc:  lcj -= 0.0001
-		#		else:		
-		#			lcj += 0.0001
-		#			alc = tcancel
-		#		sdr.set_laj(lcj)
-		#	else:
-		#		testi = False 	# Fin comprobacion
-		#		testj = False
-
-	#print(lcj)
-
 
 	# AUTODETECT
 	if detect_enable :	# Detect (grafico):
@@ -328,18 +340,35 @@ def FFT_frame(sf):
 	if maxpts_enable: 	mpts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]	#cierro para fill
 	#print(azoom)
 
-
 def waterfall(sf):
 	global pm
-	global azoom
+	global wfrango,wfframe
+	global ftbw
 
 	sf.scroll(0,1)				# Empuja parriba a un pixer por frame, de momento
+	if autorange_enable:
+		mi = 1000
+		ma = -1000
+		for x in range(VEC_SZ):		# Calcula rango
+			if pm[x] < mi: mi = pm[x]
+			if pm[x] > ma: ma = pm[x]
+		# Ampliacion es diferencia de rangos
+		k = (255.0 -contraste) / (ma - mi)
+	else:
+		k = wfrango
+		mi = -3.5
 	for x in range(VEC_SZ):		# Pinta los puntos
-		t = (3.5 + pm[x])*100
+		t = contraste + ((pm[x]-mi) * k) 	# sumo mi para dejar el limite inferior en 0	
 		if t<0: 	t = 0
 		if t>255: 	t = 255
 		pg.gfxdraw.pixel(sf,x,0,(0,t,t))
 
+	if not (wfframe % (FPS*5)):
+		t = datetime.datetime.now().timetuple()
+		fts = ftbw.render('{0:02d}:{1:02d}:{2:02d}'.format(t[3],t[4],t[5]),1, (200,100,0),(0,0,0))
+		sf.blit(fts, (0,0))												
+ 
+	wfframe += 1
 
 def calc_dev():
 	global	xdev,dev
@@ -469,6 +498,7 @@ def demod_menu():
 
 	mn = butonify.menu()
 	mn.cx = xdev
+	mn.cy = 250
 	mn.width = 200
 	mn.init(sf,bus,(0,0,0),"Demodulator")
 
@@ -520,7 +550,7 @@ def attend_mouse(sf):
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 3) or 
 			(evt.type == pg.MOUSEMOTION and evt.buttons[2] == 1) ) :					# boton derecho
 			#print(m.fabs(evt.pos[0]-xdev-xbw),evt.pos[1]) 				# ancho de banda
-	
+
 			if m.fabs(evt.pos[0]-xdev) < 20 and m.fabs(evt.pos[1]-BWY-40) < 20 :		# Menu demodulacion
 				demod_menu()
 				retf = demod_menu_response
@@ -529,9 +559,14 @@ def attend_mouse(sf):
 				xbw = m.fabs(evt.pos[0]-xdev)			
 				calc_bw()
 				continue
+			if evt.pos[1] > TOPALTO+FFTALTO:
+				retf = waterfall_response				# Sino, menu del waterfall
+				waterfall_menu()
+				continue
 			if evt.pos[1] < TOPALTO+BWY:
 				retf = fft_menu_response					# Sino, menu del FFT
 				fft_menu()
+				continue
 		if  ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 4): # boton rueda de enmedio
 			xdev += minipaso
 			calc_dev()
@@ -546,11 +581,11 @@ def fft_menu(refresh = False):
 
 	b = []
 	b += [ {"text":"Cancelation", "value":1 }]
-	b += [ {"text":"Fill", "value":1 }]
-	b += [ {"text":"Peak", "value":2 }]
-	b += [ {"text":"Decay", "value":3 }]
-	b += [ {"text":"Detect", "value":4}]
-	b += [ {"text":"AutoZOOM", "value":5 }]
+	b += [ {"text":"Fill", "value":2 }]
+	b += [ {"text":"Peak", "value":3 }]
+	b += [ {"text":"Decay", "value":4 }]
+	b += [ {"text":"Detect", "value":5}]
+	b += [ {"text":"AutoZOOM", "value":6 }]
 	for i in b:
 		i["type"]	= "Switch"
 		i["text2"]	= "OFF"
@@ -566,25 +601,55 @@ def fft_menu(refresh = False):
 	mn.width 	= 200
 	mn.cx 		= pg.mouse.get_pos()[0]
 	mn.cy 		= TOPALTO+250
-	mn.header 	= "FFT Menu"
 	if refresh: mn.frame = 48 # no scroll
 	mn.init(sf,b,(0,0,0),"FFT Menu")
 
 def fft_menu_response():
 	global mn,opt
-	global fftfill_enable, maxpts_enable, maxdecay_enable, detect_enable, azoom_enable
+	global linecancel_enable,fftfill_enable, maxpts_enable, maxdecay_enable, detect_enable, azoom_enable
 
-	if opt.value == 1:	fftfill_enable 	= not fftfill_enable
-	if opt.value == 2:	maxpts_enable  	= not maxpts_enable
-	if opt.value == 3:	maxdecay_enable = not maxdecay_enable
-	if opt.value == 4:	detect_enable 	= not detect_enable
-	if opt.value == 5:	azoom_enable 	= not azoom_enable
+	if opt.value == 1:	linecancel_enable = not linecancel_enable
+	if opt.value == 2:	fftfill_enable 	= not fftfill_enable
+	if opt.value == 3:	maxpts_enable  	= not maxpts_enable
+	if opt.value == 4:	maxdecay_enable = not maxdecay_enable
+	if opt.value == 5:	detect_enable 	= not detect_enable
+	if opt.value == 6:	azoom_enable 	= not azoom_enable
 
 	if opt.value == 0:	
 		mn = opt = None
 	else:
 		mn = None
 		fft_menu(True)
+
+def waterfall_menu(refresh=False):
+	global mn
+
+	b = []
+	b += [ {"text":"Autorange", "value":1 }]
+	for i in b:
+		i["type"]	= "Switch"
+		i["text2"]	= "OFF"
+	if autorange_enable: 	b[0]["text2"] = "ON"
+	b += [ {"text":"Back", "value":0}]
+
+	mn = butonify.menu()
+	mn.width 	= 200
+	mn.cx 		= pg.mouse.get_pos()[0]
+	mn.cy 		= 150
+	if refresh: mn.frame = 48 # no scroll
+	mn.init(sf,b,(0,0,0),"WF Menu")
+
+def waterfall_response():
+	global mn,opt
+	global autorange_enable
+
+	if opt.value == 1:	autorange_enable = not autorange_enable
+
+	if opt.value == 0:	
+		mn = opt = None
+	else:
+		mn = None
+		waterfall_menu(True)
 
 def main_menu():
 	global mn
@@ -797,7 +862,6 @@ if __name__ == "__main__":
 	print("[+] ISMASRADIO (c) 2016")
 
 	print("[+] Init")
-	yy		= [ 0.0 for y in range(VEC_SZ)]
 	pm		= [ 0.0 for y in range(VEC_SZ)]
 	py 		= [[0 for y in range(VEC_SZ)] for x in range(fft_media)]		# soften matrix
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
