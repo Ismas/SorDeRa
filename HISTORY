@@ -128,3 +128,9 @@
 	Menu de waterfall para el autorango.
 		TODO Bug en los menus: Son todos relativos a FFT_SF y deberian serlo a sus respectivas ventanas
 	Arreglado boton linecancel
+
+20160320
+	Arreglado visualizacion LSB y USB. Ha sido muy facil.
+
+20160322
+	AUTOSINT a la frecuencia más alta.

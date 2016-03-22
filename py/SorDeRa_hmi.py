@@ -28,9 +28,12 @@ maxdecay_enable = False
 azoom_enable 	= True
 fftfill_enable	= False
 detect_enable	= False
+stronger_enable	= False
+
 
 # Automatismos waterfall
 autorange_enable = True
+dostronger		= False
 
 # Main Window
 ANCHO		= 1280
@@ -186,6 +189,7 @@ ch = None
 def FFT_get():
 	global py,pydx,pm
 	global linecancel_enable,lci,lcj,testi,testj,lcs,alc
+	global dostronger,tframe, xdev
 	# RANGO [-10,5] -> +10 -> [0,15]
 	# 120/15 = 8 -> dBs
 	# FFTALTO/120 = 
@@ -246,6 +250,18 @@ def FFT_get():
 	else:	
 		for x in range(VEC_SZ):	py[pydx][x] = random.random() 
 			
+	if dostronger and tframe > fft_media:	# Sintoniza al punto más alto cuando el FFT se ha estabilizado
+		tmax = -3.0 # Un nivel minimo para sintonizar, debería ser -infinito
+		txd  = 0
+		for i in range(VEC_SZ):
+			if py[pydx][i] > tmax: 
+				tmax = py[pydx][i]
+				txd = i 
+		if txd:
+		 	xdev = txd
+		 	dostronger = False
+		 	calc_dev()
+
 	pydx = (pydx+1) % fft_media					# Siguiente para media
 
 def FFT_frame(sf):
@@ -376,15 +392,18 @@ def calc_dev():
 	global  fqlabel1,fqlabel2
 	global 	refreshfq
 
-	a = FFTANCHO/2											# media pantalla
+	a = FFTANCHO/2								# media pantalla
 	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
 	fq = int(fqc + dev)
 	sfq = format(fq,'010d')
 	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
 	sfq = sfq.lstrip('0.')
+	if stronger_enable: sfq = "[] " + sfq  		# Pinta una "A" de automático si está en autosint
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
-	if REAL: sdr.set_dev(int(-dev))	# set dev
+	t = 0 											# AÑADO DESFASE A LA DESVIACION SOLO PARA USB y LSB
+	if tmode=="USB" or tmode=="LSB": t = bw;		# APLICA SOLO A LA LOGICA; NO A LOS VALORES
+	if REAL: sdr.set_dev(int(-dev+t))	# set dev
 
 def calc_bw():
 	global xbw,bw,maxbw
@@ -403,6 +422,7 @@ def calc_bw():
 	xbw = bw / (SAMPLERATE/FFTANCHO)
 	txt = str(bw)
 	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
+	calc_dev()												# calcula dev para USB y LSB
 	if REAL: sdr.set_bw(bw)									# set bw
 
 def calc_freq(posx,posy):
@@ -412,6 +432,7 @@ def calc_freq(posx,posy):
 	global refreshfq
 	global tframe
 	global maxpts
+	global stronger_enable, dostronger
 
 	sp 	 = 4
 	size = 24
@@ -429,6 +450,7 @@ def calc_freq(posx,posy):
 
 	calc_dev()			# Esto afecta al indicador de desviacion
 	tframe = 0 			# reinicia suavizado
+	if stronger_enable: dostronger = True;	# REsintoniza automaticamente
 
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 	refreshfq = True
@@ -481,6 +503,7 @@ def demod_mode_response():
 	calc_bw()
 	if REAL: 
 		#sdr.set_decimation(decimation)
+		calc_dev()			# Calcula deviation para USB y LSB
 		sdr.set_mode(mode)
 	mn = None
 	opt = None
@@ -491,9 +514,12 @@ def demod_menu():
 
 	bus = []
 	bus += [ {"type":"Switch","text":"Mode","text2":tmode,"value":1}]
-	bus += [ {"type":"Switch","text":"Rec","value":2} ]
-	if rec:	bus[1]["text2"]="ON"
-	else:	bus[1]["text2"]="OFF"
+	bus += [ {"type":"Switch","text":"AutoSINT","text2":tmode,"value":2}]
+	bus += [ {"type":"Switch","text":"Rec","value":3} ]
+	if stronger_enable:	bus[1]["text2"]="ON"
+	else:				bus[1]["text2"]="OFF"
+	if rec:	bus[2]["text2"]="ON"
+	else:	bus[2]["text2"]="OFF"
 	bus += [{"text":"Back","value":0}]
 
 	mn = butonify.menu()
@@ -504,6 +530,7 @@ def demod_menu():
 
 def demod_menu_response():
 	global mn,opt,retf
+	global dostronger, stronger_enable
 	global top_sf
 	global top_sf
 	global rec
@@ -512,10 +539,13 @@ def demod_menu_response():
 		retf = demod_mode_response
 		demod_mode()
 		return
-	if opt.value == 2:				# grabar
+	if opt.value == 3:				# grabar
 		rec = not rec 				# pinta el punto en fft_frame
 		if not rec: pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)	#Borra botón rojo izquierda smeter
 		if REAL: sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
+	if opt.value == 2:				# AutoSINT
+		stronger_enable = not stronger_enable
+		if stronger_enable: dostronger = True
 
 	mn = None
 
@@ -753,21 +783,19 @@ def pantalla_refresh(sf):
 			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
 
 	# Pinta BW
-	txdev	= xdev
 	txbw 	= 2*xbw
+	txdev   = xdev
 	tcodo 	= txdev - txbw/2
-	if 	tmode != "FM W" and tmode != "FM ST":
-		if 	tmode == "USB":		
+	if 	tmode != "FM W" and tmode != "FM ST":	# WFM no tiene ancho de banda
+		if 	tmode == "USB":						
 			txbw /= 2	
-			txdev = xdev + txbw
 			tcodo = txdev
 		elif tmode == "LSB": 	
 			txbw /= 2	
-			txdev = xdev + txbw	
 			tcodo = txdev - txbw
 		fft_sf.fill(BWCOLOR2,(tcodo,BWY,txbw,FFTALTO-BWY),0) 		# Pinta BW
 		pgd.rectangle(fft_sf,(tcodo,BWY,txbw,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(fft_sf,int(txdev),0,FFTALTO,DEVCOLOR)					# Pinta linea dev
+	pgd.vline(fft_sf,int(xdev),0,FFTALTO,DEVCOLOR)					# Pinta linea dev
 
 	# PINTA MAX
 	if maxpts_enable:												# Pintta puntos de max
