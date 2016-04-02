@@ -120,7 +120,7 @@
 
 20160311
 	USB y LSB funcionales. 
-		TODO Falta ajustar visualización USB y LSB. 
+		DONE TODO Falta ajustar visualización USB y LSB. 
 
 20160312
 	AUTORANGO en Waterfall
@@ -133,4 +133,14 @@
 	Arreglado visualizacion LSB y USB. Ha sido muy facil.
 
 20160322
-	AUTOSINT a la frecuencia más alta.
+	AUTOSINT a la amplitud más alta.
+
+20160402
+	INTRASCAN. 
+		TODO Hay que arreglar el squelch ASAP. DONE
+	VISUAL SQUELCH - un frame de histeresis
+	Opción de intrascan en menu de fft
+	Limpieza y comentarios varios
+	BIRDIES!!!! PULSANDO 'K' O PINCHANDO EN EL FFT MATAS PORTADORAS!!! La mejor idea desde el pan de molde.
+	Indicador de birdies
+	Parpadeo en INTRASCAN. Un poco escandaloso.

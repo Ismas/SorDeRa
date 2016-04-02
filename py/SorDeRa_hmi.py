@@ -25,15 +25,15 @@ if REAL: import SorDeRa_sdr as logic
 linecancel_enable	= True
 maxpts_enable 	= False
 maxdecay_enable = False
-azoom_enable 	= True
+azoom_enable 	= False
 fftfill_enable	= False
 detect_enable	= False
-stronger_enable	= False
-
+autosint_enable	= True
+intrascan_enable= False
+dostronger		= False
 
 # Automatismos waterfall
 autorange_enable = True
-dostronger		= False
 
 # Main Window
 ANCHO		= 1280
@@ -57,7 +57,7 @@ DWNANCHO	= 1280
 DWNALTO		= 300
 DWN_SIZE	= (DWNANCHO,DWNALTO)
 
-#Colrs
+#Colrs y fuentes
 BGCOLOR     = (10, 10, 50)
 FGCOLOR     = (200, 200, 50)
 FILLCOLOR   = (50, 50, 12)
@@ -86,8 +86,6 @@ MENUIMG 	= "gfx/menu.png"
 STEREOIMG 	= "gfx/stereo.png"
 
 # Network
-ADDR_FFT = ('127.0.0.1',42421)
-URL_RPC  = 'http://localhost:42423'
 VEC_SZ   = FFTANCHO
 
 # FFT
@@ -123,6 +121,8 @@ sq 		= -70
 xsq		= FFTALTO/2 
 asq		= 0.0
 possq	= (0,0)
+sqstate	= True
+asqstate= True
 
 # Mode
 mode = 0
@@ -131,7 +131,7 @@ modex = 0
 modelabel = ""
 
 # FFT
-py 		= []	# valores puntos en pantalla este fane
+#py 		= []	# valores puntos en pantalla este fane
 pm		= []	# Media de puntos
 numx	= []
 maxpts  = []	# maximos
@@ -148,6 +148,13 @@ wfframe		= 0
 dtc 	 = []	# Detect
 DTCTHRES = 1.15 # Threshold
 
+# BIRDS
+birds 	= []
+birdsize = 10
+birdzero = -3.5
+fbd		= None
+nobaile	= False
+
 #smeter	
 smval 		= 0.0
 smvaladj 	= 10.0
@@ -157,7 +164,7 @@ smx			= 0
 
 # BASE & AUTOZOOM
 FFTK   = 9*(FFTALTO/120) 
-azoom  = 1
+azoom  = 1.5
 MAXZOOM = 3
 base  = 0
 tope  = FFTALTO
@@ -189,7 +196,8 @@ ch = None
 def FFT_get():
 	global py,pydx,pm
 	global linecancel_enable,lci,lcj,testi,testj,lcs,alc
-	global dostronger,tframe, xdev
+	global dostronger, intrascan_enable, tframe, xdev, nobaile
+	global sqstate
 	# RANGO [-10,5] -> +10 -> [0,15]
 	# 120/15 = 8 -> dBs
 	# FFTALTO/120 = 
@@ -237,19 +245,23 @@ def FFT_get():
 			sdr.set_lai(0)
 			sdr.set_laj(0)
 
-
 	# ADQUISICION DE DATOS
 	if (REAL):
 		i = 0
 		for x in sdr.fft_probe.level():
-			py[pydx][i] = m.log10(x)
+			# BIRDS BIRDS
+			if int(i/birdsize)*birdsize not in birds:
+				py[pydx][i] = m.log10(x)
+			else:
+				py[pydx][i] = birdzero
 			t = 0											# Leo DBs y logaritmo y añado
 			for x2 in range(fft_media):	t += py[x2][i]		# media de los fft_media valores
 			pm[i] = (t / fft_media) 						# Media
 			i += 1
 	else:	
 		for x in range(VEC_SZ):	py[pydx][x] = random.random() 
-			
+
+	# AUTOSINT - DOSTRONGER			
 	if dostronger and tframe > fft_media:	# Sintoniza al punto más alto cuando el FFT se ha estabilizado
 		tmax = -3.0 # Un nivel minimo para sintonizar, debería ser -infinito
 		txd  = 0
@@ -262,10 +274,17 @@ def FFT_get():
 		 	dostronger = False
 		 	calc_dev()
 
+	# INTRASCAN 
+	nobaile = False
+	if intrascan_enable: dostronger = (not dostronger and sqstate)
+	if intrascan_enable and dostronger: nobaile = True
+		#dostronger = (intrascan_enable and not dostronger)
+
 	pydx = (pydx+1) % fft_media					# Siguiente para media
 
 def FFT_frame(sf):
 	global py,pydx,pm,fft_media
+	global sqstate, asqstate
 	global pts,maxpts,mpts
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
@@ -275,7 +294,6 @@ def FFT_frame(sf):
 	global smval,xdev
 	global base,mi
 	global sdr
-
 
 	# BUCLE PRINCIPAL CALCULOS
 	t 		= 0.0
@@ -289,6 +307,7 @@ def FFT_frame(sf):
 	tope 	= 0
 	dtcm	= 0
 	smval 	= -10.0
+	sqstate = True
 
 	for x in range(VEC_SZ):
 		t = pm[x]
@@ -296,33 +315,43 @@ def FFT_frame(sf):
 		# Captura media de linecancel
 		if linecancel_enable and x == VEC_SZ/2: tcancel = t
 
-		# SMETER
-		# Media de lo que hay dentro de bw
-		if m.fabs(x-xdev) < xbw:  
-			if t > smval : smval = t			# Cojo señal maxima dentro del bw para el smeter
 
 		posy = FFTALTO-(t*FFTK*azoom)-(6*FFTK*azoom)+base # Altura en el FFT
 		dtcm +=  posy / VEC_SZ 							# media para el detect (grafico)
 
 		if posy < t2  : t2 = posy 						# tope superior para calcular zoom
-		if int(posy)+base > mi: mi = int(posy)+base		# busco base
+		if int(posy)+base > mi: mi = int(posy)+base		# busco base 
 
+		# CAlculos dentro del BW
+		# SMETER
+		# Media de lo que hay dentro de bw
+		# VISUAL SQUELCH
+		# FALSE SIGNIFICA ABIERTO. 
+		# Está cerrado por omisión y se levanta si hay algún punto > squelch
+		if m.fabs(x-xdev) < xbw:  
+			if t > smval : 	smval = t					# Cojo señal maxima dentro del bw para el smeter
+			if sqstate: 	sqstate = int(posy) > xsq;  # CUANTO MÁS BAJO EN LA PANTALLA, MAYOR ES
+
+		#################################################################
 		pts += [(x,int(posy)+base)]					# compone vector draw
+		#################################################################
 
-		# MAXPTS
+		# MAXPTS y MAXDECAY
 		if maxpts_enable and tframe > fft_media:
-			if int(posy) < maxpts[x] :	
-				maxpts[x] = int(posy)					# Calcula max
-			else :
+			if posy < maxpts[x]:	maxpts[x] = int(posy)	# Calcula max
+			else:
 				if maxdecay_enable: maxpts[x] += 1
-			mpts += [(x,maxpts[x]+1+base)]
+			mpts += [(x,maxpts[x]+1+base)]			# compongo vector max
+
+	# Activa squelch con una histéresis de un frame 
+	sdr.set_visualsq(asqstate)
+	asqstate = sqstate
 
 	# Caluclo base
 	if mi < FFTALTO-30:	base += 1
 	if mi > FFTALTO:	base -= 1
 
-
-	# AUTODETECT
+	# AUTODETECT (muy mejorable)
 	if detect_enable :	# Detect (grafico):
 		# TIPO A media movil. Si tres valores mayores que la media
 		#x = 0
@@ -340,21 +369,18 @@ def FFT_frame(sf):
 
 	# AUTOZOOM
 	if azoom_enable :
-		if t2>(YTOP*1.05) : 
-			if (azoom<MAXZOOM): 
-				azoom += 0.01       # AUTOZOOM con 5% de histeresis
-				calc_sq(xsq+TOPALTO)
-		if t2<(YTOP*0.95) : 
-			if azoom>1: 
-				azoom -= 0.03
-				calc_sq(xsq+TOPALTO)
+		if t2 > (YTOP*1.05) and azoom > MAXZOOM : 
+			azoom += 0.01       # AUTOZOOM con 5% de histeresis
+			calc_sq(xsq+TOPALTO)
+		if t2 < (YTOP*0.95) and azoom > 1 : 
+			azoom -= 0.03
+			calc_sq(xsq+TOPALTO)
 
 	# Calculos finales
 	smval 	= (smval + 5) * 1.55 		# Ajuste final smeter
 	tframe	+= 1
-	pts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]						#cierro para fill
-	if maxpts_enable: 	mpts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]	#cierro para fill
-	#print(azoom)
+	pts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]					#cierro para fill
+	if maxpts_enable: mpts 	+= [(FFTANCHO+1,FFTALTO+1),(0,FFTALTO+1)]	#cierro para fill
 
 def waterfall(sf):
 	global pm
@@ -379,7 +405,7 @@ def waterfall(sf):
 		if t>255: 	t = 255
 		pg.gfxdraw.pixel(sf,x,0,(0,t,t))
 
-	if not (wfframe % (FPS*5)):
+	if not (wfframe % (FPS*5)):	# Pinta hora
 		t = datetime.datetime.now().timetuple()
 		fts = ftbw.render('{0:02d}:{1:02d}:{2:02d}'.format(t[3],t[4],t[5]),1, (200,100,0),(0,0,0))
 		sf.blit(fts, (0,0))												
@@ -398,7 +424,7 @@ def calc_dev():
 	sfq = format(fq,'010d')
 	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
 	sfq = sfq.lstrip('0.')
-	if stronger_enable: sfq = "[] " + sfq  		# Pinta una "A" de automático si está en autosint
+	if autosint_enable: sfq = "[] " + sfq  		# Pinta algo de automático si está en autosint
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
 	t = 0 											# AÑADO DESFASE A LA DESVIACION SOLO PARA USB y LSB
@@ -415,15 +441,12 @@ def calc_bw():
 	a = FFTANCHO/2 											# media pantalla
 	decirate= SAMPLERATE/decimation
 	bw = int((SAMPLERATE*xbw)/FFTANCHO)
-	if (bw >= maxbw):
-		bw = maxbw
-	if (bw < MINBW):
-		bw = MINBW
+	if (bw >= maxbw):	bw = maxbw
+	if (bw < MINBW):	bw = MINBW
 	xbw = bw / (SAMPLERATE/FFTANCHO)
-	txt = str(bw)
-	bwlabel = ftbw.render(txt, 0, BWCOLOR,BWCOLOR2)
-	calc_dev()												# calcula dev para USB y LSB
-	if REAL: sdr.set_bw(bw)									# set bw
+	bwlabel = ftbw.render(str(bw), 0, BWCOLOR,BWCOLOR2)
+	calc_dev()					# calcula dev para USB y LSB
+	if REAL: sdr.set_bw(bw)		# set bw
 
 def calc_freq(posx,posy):
 	global fqc
@@ -432,9 +455,9 @@ def calc_freq(posx,posy):
 	global refreshfq
 	global tframe
 	global maxpts
-	global stronger_enable, dostronger
+	global autosint_enable, dostronger
+	global birds
 
-	sp 	 = 4
 	size = 24
 	inc  = 1
 	if posy > TOPALTO/2: inc = -1 	# Calcula incremento o decremento
@@ -450,7 +473,8 @@ def calc_freq(posx,posy):
 
 	calc_dev()			# Esto afecta al indicador de desviacion
 	tframe = 0 			# reinicia suavizado
-	if stronger_enable: dostronger = True;	# REsintoniza automaticamente
+	birds = []			# reinicia birds
+	dostronger = autosint_enable;	# REsintoniza automaticamente
 
 	maxpts  = [ FFTALTO for y in range(VEC_SZ)]
 	refreshfq = True
@@ -460,12 +484,13 @@ def calc_sq(posy):
 	global sdr
 
 	xsq = posy - TOPALTO 
-	sq =  int( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  ) )
+	sq =  int( ((-120/azoom)*(float(xsq)/FFTALTO)) - (120.0-120.0/azoom)*(1.0-(xsq/FFTALTO)  )) # Casi me mato para llegar a esta fórmula
 
 	if sq < -120 : sq = 120
 	if sq > 0 	 : sq = 0
 
-	if REAL: sdr.set_sq(sq+(9*azoom))	# 15 for que si
+	#Esto ya no es necesario con el VISUAL SQ
+	#if REAL: sdr.set_sq(sq+(9*azoom))	# 9 for que si
 
 def demod_mode():
 	global mn,opt,xdev
@@ -516,7 +541,7 @@ def demod_menu():
 	bus += [ {"type":"Switch","text":"Mode","text2":tmode,"value":1}]
 	bus += [ {"type":"Switch","text":"AutoSINT","text2":tmode,"value":2}]
 	bus += [ {"type":"Switch","text":"Rec","value":3} ]
-	if stronger_enable:	bus[1]["text2"]="ON"
+	if autosint_enable:	bus[1]["text2"]="ON"
 	else:				bus[1]["text2"]="OFF"
 	if rec:	bus[2]["text2"]="ON"
 	else:	bus[2]["text2"]="OFF"
@@ -530,7 +555,7 @@ def demod_menu():
 
 def demod_menu_response():
 	global mn,opt,retf
-	global dostronger, stronger_enable
+	global dostronger, autosint_enable, intrascan_enable
 	global top_sf
 	global top_sf
 	global rec
@@ -539,13 +564,13 @@ def demod_menu_response():
 		retf = demod_mode_response
 		demod_mode()
 		return
+	if opt.value == 2:				# AutoSINT
+		autosint_enable = not autosint_enable
+		if autosint_enable: dostronger = True
 	if opt.value == 3:				# grabar
 		rec = not rec 				# pinta el punto en fft_frame
 		if not rec: pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)	#Borra botón rojo izquierda smeter
 		if REAL: sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
-	if opt.value == 2:				# AutoSINT
-		stronger_enable = not stronger_enable
-		if stronger_enable: dostronger = True
 
 	mn = None
 
@@ -554,8 +579,14 @@ def attend_mouse(sf):
 	global possq
 	global retf
 	global SALIDA
+	global birds
 
 	for evt in pg.event.get():
+		if evt.type == 2:	# Keydown 
+			if evt.scancode == 45:			# KILL
+				t = int(xdev/birdsize)*birdsize
+				if t not in birds: birds += [t]
+				else: birds.remove(xdev)
 		if (evt.type == pg.QUIT):
 			print("[+] Evento de salida")
 			SALIDA = True
@@ -573,6 +604,10 @@ def attend_mouse(sf):
 			if evt.type == pg.MOUSEBUTTONDOWN and evt.button == 1 and evt.pos[1]<TOPALTO :	# Digitos de frecuencia
 				calc_freq(evt.pos[0],evt.pos[1])
 				continue
+			if evt.type == pg.MOUSEBUTTONDOWN  and evt.pos[1] > TOPALTO + FFTALTO:	# BIRDIE pinchado en el FFT
+				t = int(evt.pos[0]/birdsize)*birdsize
+				if t not in birds: birds += [t]
+				else: birds.remove(t)
 			if (evt.pos[1] > TOPALTO):														# desviacion
 				xdev = evt.pos[0]
 				calc_dev()
@@ -616,6 +651,8 @@ def fft_menu(refresh = False):
 	b += [ {"text":"Decay", "value":4 }]
 	b += [ {"text":"Detect", "value":5}]
 	b += [ {"text":"AutoZOOM", "value":6 }]
+	b += [ {"text":"Intra SCAN","value":7}]
+
 	for i in b:
 		i["type"]	= "Switch"
 		i["text2"]	= "OFF"
@@ -625,6 +662,7 @@ def fft_menu(refresh = False):
 	if maxdecay_enable: 	b[3]["text2"] = "ON"
 	if detect_enable: 		b[4]["text2"] = "ON"
 	if azoom_enable: 		b[5]["text2"] = "ON"
+	if intrascan_enable:	b[6]["text2"] = "ON"
 	b += [ {"text":"Back", "value":0}]
 
 	mn = butonify.menu()
@@ -636,7 +674,7 @@ def fft_menu(refresh = False):
 
 def fft_menu_response():
 	global mn,opt
-	global linecancel_enable,fftfill_enable, maxpts_enable, maxdecay_enable, detect_enable, azoom_enable
+	global linecancel_enable,fftfill_enable, maxpts_enable, maxdecay_enable, detect_enable, azoom_enable, intrascan_enable
 
 	if opt.value == 1:	linecancel_enable = not linecancel_enable
 	if opt.value == 2:	fftfill_enable 	= not fftfill_enable
@@ -644,9 +682,9 @@ def fft_menu_response():
 	if opt.value == 4:	maxdecay_enable = not maxdecay_enable
 	if opt.value == 5:	detect_enable 	= not detect_enable
 	if opt.value == 6:	azoom_enable 	= not azoom_enable
+	if opt.value == 7:	intrascan_enable= not intrascan_enable
 
-	if opt.value == 0:	
-		mn = opt = None
+	if opt.value == 0:	mn = opt = None
 	else:
 		mn = None
 		fft_menu(True)
@@ -675,8 +713,7 @@ def waterfall_response():
 
 	if opt.value == 1:	autorange_enable = not autorange_enable
 
-	if opt.value == 0:	
-		mn = opt = None
+	if opt.value == 0:	mn = opt = None
 	else:
 		mn = None
 		waterfall_menu(True)
@@ -712,7 +749,7 @@ def main_menu_response():
 def pantalla_init():
 	global bw, fq
 	global bwlabel, fqlabel
-	global ftbw,ftdev1,ftdev2,ftqc
+	global ftbw,ftdev1,ftdev2,ftqc,fbd
 	global fft_sf, top_sf, dwn_sf
 	global menusf,stereosf
 
@@ -744,6 +781,9 @@ def pantalla_init():
 	top_sf.blit(fsq, (smx,19))													# Pinta smeter guia
 	pgd.box(top_sf,(smx+10,23,sml-25,2),(200,200,200))
 
+	# Pinta signo de BIRDIE
+	fbd = ftdev1.render('X',1,(250,150,0),BGCOLOR)
+
 	# pinta boton menu
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
@@ -765,7 +805,7 @@ def pantalla_refresh(sf):
 	global maxfill_enable, maxpts_enable, refreshfq
 	global azoom, base
 	global fft_sf,top_sf
-	global sq,xsq,asq,smval,smvaladj,possq
+	global sq,xsq,asq,smval,smvaladj,possq,sqstate
 	global frame, count
 	global menusf,stereosf
 
@@ -779,23 +819,25 @@ def pantalla_refresh(sf):
 		y = int(FFTALTO - (x*(FFTALTO/12))*azoom) + base
 		if y > 0 :
 			pgd.hline(fft_sf,0,FFTANCHO,y,ESCCOLOR)
-			lb = ftdev1.render(str((12-x)*-10), 0, ESCCOLOR,BGCOLOR) # pinta dev text
-			fft_sf.blit(lb, (0,y-10))	# Pinta fq label
+			lb = ftdev1.render(str((12-x)*-10), 0, ESCCOLOR,BGCOLOR) # pinta db text
+			fft_sf.blit(lb, (0,y-10))	# Pinta db label
 
 	# Pinta BW
+	if nobaile: txdev = FFTANCHO/2;
+	else:		txdev = xdev
 	txbw 	= 2*xbw
-	txdev   = xdev
 	tcodo 	= txdev - txbw/2
-	if 	tmode != "FM W" and tmode != "FM ST":	# WFM no tiene ancho de banda
-		if 	tmode == "USB":						
-			txbw /= 2	
-			tcodo = txdev
-		elif tmode == "LSB": 	
-			txbw /= 2	
-			tcodo = txdev - txbw
-		fft_sf.fill(BWCOLOR2,(tcodo,BWY,txbw,FFTALTO-BWY),0) 		# Pinta BW
-		pgd.rectangle(fft_sf,(tcodo,BWY,txbw,FFTALTO-BWY),BWCOLOR)
-	pgd.vline(fft_sf,int(xdev),0,FFTALTO,DEVCOLOR)					# Pinta linea dev
+	if not nobaile or (nobaile and (frame % 10) > 4 ):			# parapedea dev si introscan
+		if 	tmode != "FM W" and tmode != "FM ST":			# WFM no tiene ancho de banda
+			if 	tmode == "USB":						
+				txbw /= 2	
+				tcodo = txdev
+			elif tmode == "LSB": 	
+				txbw /= 2	
+				tcodo = txdev - txbw
+			fft_sf.fill(BWCOLOR2,(tcodo,BWY,txbw,FFTALTO-BWY),0) 		# Pinta BW
+			pgd.rectangle(fft_sf,(tcodo,BWY,txbw,FFTALTO-BWY),BWCOLOR)
+	pgd.vline(fft_sf,int(txdev),0,FFTALTO,DEVCOLOR)		# Pinta linea dev
 
 	# PINTA MAX
 	if maxpts_enable:												# Pintta puntos de max
@@ -813,25 +855,24 @@ def pantalla_refresh(sf):
 	if detect_enable :												# Pinta detector picos
 		for x in dtc :	pgd.circle(fft_sf,x[0],x[1],10,DETECTCOLOR)
 
-	# PINTA DEV
-	if 	tmode != "FM W" and tmode != "FM ST":
-		fft_sf.blit(bwlabel,  (txdev-bwlabel.get_size()[0]/2,BWY+2))	# Pinta bw label
-		fft_sf.blit(fqlabel1, (txdev-pleft,BWY-22))						# Pinta dev label 
-		fft_sf.blit(fqlabel2, (txdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
-	fft_sf.blit(modelabel,(txdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
+	# PINTA DEV text
+	if not nobaile or (nobaile and  (frame % 10) > 4):
+		if 	tmode != "FM W" and tmode != "FM ST":
+			fft_sf.blit(bwlabel,  (txdev-bwlabel.get_size()[0]/2,BWY+2))	# Pinta bw label
+			fft_sf.blit(fqlabel1, (txdev-pleft,BWY-22))						# Pinta dev label 
+			fft_sf.blit(fqlabel2, (txdev-pleft+fqlabel1.get_size()[0]+4,BWY-20))	
+		fft_sf.blit(modelabel,(txdev-modelabel.get_size()[0]/2,BWY-40))	# Pinta mode label
 
 	# pinta Sqelch
 	tc 	= SQCOLOR
-	tsq = 0
-	if REAL: tsq = sdr.probe_sq.level()				# Lee el nivel para ver si está levantado el squelch
-	if 	tsq != asq: tc = (0,200,0)			# Si está levantado pinta verde
+	if not sqstate:	tc = (0,200,0)			# Si está levantado pinta verde
 	pgd.hline(fft_sf,0,FFTANCHO,xsq+base, tc)
-	fsq = ftdev2.render('SQ '+str(sq), 0, DEVCOLORHZ,BGCOLOR)
-	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-12+base))		# Pinta bw label
+	fsq = ftdev2.render(' SQ '+str(sq)+ ' ', 0, DEVCOLORHZ,(100,25,25))
+	fft_sf.blit(fsq, (FFTANCHO-fsq.get_size()[0],xsq-10+base))		# Pinta bw label
 
 	possq = (FFTANCHO-fsq.get_size()[0]+25,xsq-12+base+12)	# Guardo posicion para el botón
 	#pgd.circle(fft_sf,possq[0],possq[1],50,(200,200,200))
-	asq = tsq
+	#asq = tsq
 
 	# pinta smeter
 	pgd.box(top_sf,(smx+13,25,sml-28,9),(0,0,0))
@@ -858,9 +899,6 @@ def pantalla_refresh(sf):
 			top_sf.blit(fqclabel,(px,0))							# blit
 			if txt[x] not in ['.',','] : numx += [px]				# Almacena la coordenada del numero
 
-	# PINTA MENU IF ANY
-	if mn : mn.refresca()
-
 	# PARPADEA BOTON ROJO IF REC
 	if rec:
 		if frame == FPS/2: 
@@ -874,6 +912,13 @@ def pantalla_refresh(sf):
 			top_sf.blit(stereosf,(250,8))
 		else:
 			pgd.box(top_sf,(250,0,40,TOPALTO),BGCOLOR)
+
+	# Pinta BIRDIES
+	for i in birds:
+		fft_sf.blit(fbd, (i+((birdsize-16)/2),FFTALTO-16))
+
+	# PINTA MENU IF ANY
+	if mn : mn.refresca()
 
 	# Flipea/Vuelca la pantalla
 	pg.display.flip()							
