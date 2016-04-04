@@ -101,7 +101,7 @@ def doit(calibrar):
 		pg.draw.rect(sf,FGCOLOR,(i,0,RES,10));
 		pg.draw.line(sf,FGCOLOR,(i,FFTALTO-int(py[i])),(i+RES,FFTALTO-int(py[i])));
 
-		#VE
+		# Muestra
 		pg.display.flip()		
 
 		for evt in pg.event.get():			
@@ -160,10 +160,12 @@ if __name__ == "__main__":
 	sf.fill(BGCOLOR)
 
 	######### CALIBRACIÓN
-	pg.display.set_caption("ANALIZADOR DE ESPECTRO ******* CALIBRANDO *********")
+	pg.display.set_caption("ANALIZADOR DE ESPECTRO                    ******* CALIBRANDO *********")
 	pg.display.flip()		
 	doit(True)
-	pg.display.set_caption("ANALIZADOR DE ESPECTRO ** RUN **")
+
+	######### EJECUCIÓN
+	pg.display.set_caption("ANALIZADOR DE ESPECTRO                    ** RUN **")
 	pg.display.flip()		
 	while not SALIDA:
 		doit(False)
