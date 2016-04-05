@@ -99,7 +99,7 @@ xdev 	= float(FFTANCHO/2 - (20000/FFTANCHO))
 dev 	= -20000
 fqc 		= 126220000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
-audrate 	= 11025
+audrate 	= 22050
 SAMPLERATE 	= 192000
 decimation  = SAMPLERATE/audrate
 decirate	= SAMPLERATE/decimation
@@ -369,10 +369,12 @@ def FFT_frame(sf):
 
 	# AUTOZOOM
 	if azoom_enable :
-		if t2 > (YTOP*1.05) and azoom > MAXZOOM : 
+		if t2 > (YTOP*1.1) and azoom < MAXZOOM : 
+			#print("*** en T2 1")
 			azoom += 0.01       # AUTOZOOM con 5% de histeresis
 			calc_sq(xsq+TOPALTO)
-		if t2 < (YTOP*0.95) and azoom > 1 : 
+		if t2 < (YTOP*0.90) and azoom > 1 : 
+			#print("*** en T2 2")
 			azoom -= 0.03
 			calc_sq(xsq+TOPALTO)
 
