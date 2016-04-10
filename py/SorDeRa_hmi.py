@@ -204,11 +204,10 @@ mi = 100
 
 ch = None
 
-
 # Manejo por puerto de control
 class skhandler(SocketServer.BaseRequestHandler):
 	def handle(self):
-		global	opt
+		global	opt,rec,dev
 
 		salir = False
 		data = []
@@ -221,13 +220,24 @@ class skhandler(SocketServer.BaseRequestHandler):
 			resp = ""
 			print("[+] >>>> {}".format(data))
 			if data[:1]=='F':
-				calc_freq_f(int(data[1:])+25000)
-				calc_xdev(-25000)
+				tf = int(data[1:])
+				if m.fabs(tf-(fqc-15000)) < (SAMPLERATE/3):
+					dev = tf-(fqc-15000)-15000
+					calc_xdev(dev)
+					#dev = tf-(fqc-15000)-15000 # chAPUXILLA
+					#t = 0 											# AÑADO DESFASE A LA DESVIACION SOLO PARA USB y LSB
+					#if tmode=="USB" or tmode=="LSB": t = bw;		# APLICA SOLO A LA LOGICA; NO A LOS VALORES
+					#if REAL: sdr.set_dev(int(dev+t))	# set dev
+				else:	
+					calc_freq_f(int(data[1:])-15000)
+					calc_xdev(15000)
 				resp='RPRT 0\n'
 			if data[:1]=='M':
 				opt.texto = data[1:].strip()
 				#opt.value = 
 				demod_mode_response()
+			if data[:3]=='AOS':	rec = True 
+			if data[:3]=='LOS':	rec = False 
 			if data[:1]=='f':	resp=str(fqc+dev).strip()+'\n'
 			if data[:1]=='l':	resp=str(smval).strip()+'\n'
 			if data[:1]=='m':	resp=tmode.strip()+'\n'
@@ -236,13 +246,11 @@ class skhandler(SocketServer.BaseRequestHandler):
 				print("[+] ==== Desconectado {}".format(self.client_address))
 			else:
 				sk.send(resp)
-				print("[+] <<<< {}".format(resp))
+				print("[+] <<<< {}".format(resp).strip())
 		pgd.box(top_sf,(390,0,50,TOPALTO),BGCOLOR)
-
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
-
 
 def FFT_get():
 	global py,pydx,pm
@@ -1081,7 +1089,6 @@ if __name__ == "__main__":
 		# DOWNER
 		downerf(dwn_sf)
 		pantalla_refresh(sf)
-		#inetcontrol()
 
 	print("[+] Guardando estado")
 	try:
@@ -1095,7 +1102,7 @@ if __name__ == "__main__":
 		pickle.dump(xsq, f)
 		f.close()
 	except:
-		print("[-] ERROR CREADNO FICHERO ESTADO")
+		print("[-] ERROR CREANDO FICHERO ESTADO")
 
 	print("[+] Saliendo")
 	if SK:

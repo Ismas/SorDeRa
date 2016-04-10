@@ -151,5 +151,5 @@
 20160410
 	Cambiado fuente a osmosrc - Teóricamente se puede elegir fuente.
 	CONTROL REMOTO, socket 13379
-	Parametros de hamlib: F,f,m,l,q,c. Pendiente M, F local
+	Parametros de hamlib: F,f,m,l,q,c,AOS,LOS. Incluído cambio de F suave. Pendiente M.
 	Icono de enlace
