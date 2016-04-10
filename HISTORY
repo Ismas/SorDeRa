@@ -144,3 +144,12 @@
 	BIRDIES!!!! PULSANDO 'K' O PINCHANDO EN EL FFT MATAS PORTADORAS!!! La mejor idea desde el pan de molde.
 	Indicador de birdies
 	Parpadeo en INTRASCAN. Un poco escandaloso.
+
+20160409
+	Prueba de DSD, puerto UDP l3370 para datos sonido y UDP 13371 para datos antes de demodular ambos a 48K
+
+20160410
+	Cambiado fuente a osmosrc - Teóricamente se puede elegir fuente.
+	CONTROL REMOTO, socket 13379
+	Parametros de hamlib: F,f,m,l,q,c. Pendiente M, F local
+	Icono de enlace

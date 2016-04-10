@@ -13,6 +13,9 @@ import struct as st
 import math as m
 import random
 import pickle
+import socket
+import threading
+import SocketServer
 import datetime
 import numpy as np
 import butonify
@@ -84,6 +87,10 @@ count 	= 0
 # GFX
 MENUIMG 	= "gfx/menu.png"
 STEREOIMG 	= "gfx/stereo.png"
+LINKIMG 	= "gfx/socket.png"
+stereosf 	= None
+menusf 		= None
+linksf 		= None
 
 # Network
 VEC_SZ   = FFTANCHO
@@ -100,7 +107,8 @@ dev 	= -20000
 fqc 		= 126220000		# SDR params in Khz
 #fq = fqc 	= 145800000		# SDR params in Khz
 audrate 	= 22050
-SAMPLERATE 	= 192000
+SAMPLERATE 	= 192000	# FCDPP
+#SAMPLERATE 	= 500000		# RTL_SDR
 decimation  = SAMPLERATE/audrate
 decirate	= SAMPLERATE/decimation
 MINBW		= 150
@@ -178,6 +186,11 @@ lcj = 0.0
 lcs = -1
 alc = 0.0
 
+# Socket
+SK = None
+SKPORT = 13379
+SKHOST = '0.0.0.0'
+
 # rec
 rec 	= False
 
@@ -188,10 +201,48 @@ SALIDA 	= False
 ma = -100
 mi = 100
 
-stereosf = None
-menusf = None
 
 ch = None
+
+
+# Manejo por puerto de control
+class skhandler(SocketServer.BaseRequestHandler):
+	def handle(self):
+		global	opt
+
+		salir = False
+		data = []
+		sk = self.request
+		print("[+] ==== Conexión desde {}".format(self.client_address))
+		top_sf.blit(linksf,(390,0))
+		while not salir:
+			data = sk.recv(1024).strip()
+			if not data: return	
+			resp = ""
+			print("[+] >>>> {}".format(data))
+			if data[:1]=='F':
+				calc_freq_f(int(data[1:])+25000)
+				calc_xdev(-25000)
+				resp='RPRT 0\n'
+			if data[:1]=='M':
+				opt.texto = data[1:].strip()
+				#opt.value = 
+				demod_mode_response()
+			if data[:1]=='f':	resp=str(fqc+dev).strip()+'\n'
+			if data[:1]=='l':	resp=str(smval).strip()+'\n'
+			if data[:1]=='m':	resp=tmode.strip()+'\n'
+			if data[:1].upper()=='Q' or data[:1].upper()=='C': 
+				salir=True
+				print("[+] ==== Desconectado {}".format(self.client_address))
+			else:
+				sk.send(resp)
+				print("[+] <<<< {}".format(resp))
+		pgd.box(top_sf,(390,0,50,TOPALTO),BGCOLOR)
+
+
+class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
+
 
 def FFT_get():
 	global py,pydx,pm
@@ -250,7 +301,7 @@ def FFT_get():
 		i = 0
 		for x in sdr.fft_probe.level():
 			# BIRDS BIRDS
-			if int(i/birdsize)*birdsize not in birds:
+			if x != 0 and int(i/birdsize)*birdsize not in birds:
 				py[pydx][i] = m.log10(x)
 			else:
 				py[pydx][i] = birdzero
@@ -415,23 +466,32 @@ def waterfall(sf):
 	wfframe += 1
 
 def calc_dev():
-	global	xdev,dev
+	global 	dev
 	global	fqc,afq
 	global  fqlabel1,fqlabel2
 	global 	refreshfq
 
 	a = FFTANCHO/2								# media pantalla
-	dev = (xdev-a) * (SAMPLERATE/FFTANCHO)
-	fq = int(fqc + dev)
+	dev = -(xdev-a) * (SAMPLERATE/FFTANCHO) 
+
+	fq = int(fqc - dev)
 	sfq = format(fq,'010d')
 	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
 	sfq = sfq.lstrip('0.')
 	if autosint_enable: sfq = "[] " + sfq  		# Pinta algo de automático si está en autosint
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
 	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
+
 	t = 0 											# AÑADO DESFASE A LA DESVIACION SOLO PARA USB y LSB
 	if tmode=="USB" or tmode=="LSB": t = bw;		# APLICA SOLO A LA LOGICA; NO A LOS VALORES
-	if REAL: sdr.set_dev(int(-dev+t))	# set dev
+	if REAL: sdr.set_dev(int(dev+t))	# set dev
+
+def calc_xdev(tdev):	# calcula xdev a partir de dev 
+	global xdev
+
+	a = FFTANCHO/2								# media pantalla
+	xdev = a-(-tdev/(SAMPLERATE/ANCHO))
+	calc_dev()
 
 def calc_bw():
 	global xbw,bw,maxbw
@@ -451,24 +511,29 @@ def calc_bw():
 	if REAL: sdr.set_bw(bw)		# set bw
 
 def calc_freq(posx,posy):
-	global fqc
 	global numx
 	global sdr
-	global refreshfq
 	global tframe
 	global maxpts
 	global autosint_enable, dostronger
 	global birds
 
+	tfq = fqc
 	size = 24
 	inc  = 1
 	if posy > TOPALTO/2: inc = -1 	# Calcula incremento o decremento
 
 	i = 9;
 	for x in numx:
-		if (posx >= x) and (posx <= x+size) : fqc += inc * (10**i) # Click sobre los numeros			
+		if (posx >= x) and (posx <= x+size) : tfq += inc * (10**i) # Click sobre los numeros			
 		i -= 1
+	calc_freq_f(tfq)
 
+def calc_freq_f(freq):
+	global fqc
+	global refreshfq
+
+	fqc = freq
 	if fqc > MAXF : fqc = MAXF 	# Limites
 	if fqc < MINF : fqc = MINF
 	if REAL: sdr.set_freq(fqc)
@@ -753,7 +818,7 @@ def pantalla_init():
 	global bwlabel, fqlabel
 	global ftbw,ftdev1,ftdev2,ftqc,fbd
 	global fft_sf, top_sf, dwn_sf
-	global menusf,stereosf
+	global menusf,stereosf,linksf
 
 	pg.init()
 	os.environ["SDL_VIDEO_CENTERED"] = "TRUE"
@@ -792,6 +857,9 @@ def pantalla_init():
 
 	# icono stereo
 	stereosf = pg.image.load(STEREOIMG)
+
+	# icono link
+	linksf = pg.image.load(LINKIMG)
 
 	# Icono aplicación
 	pg.display.set_icon(stereosf)
@@ -955,9 +1023,19 @@ if __name__ == "__main__":
 	except:
 		print("[-] ERROR LEYENDO FICHERO ESTADO")
 
+	print("[+] Abriendo socket de control " + str(SKPORT))
+	try:
+		SK = ThreadedTCPServer((SKHOST, SKPORT), skhandler)
+		SKth = threading.Thread(target=SK.serve_forever)
+		SKth.daemon = True
+		SKth.start()
+	except:
+		print("[-] ERROR ABRIENDO SOCKET")
+
 	if (REAL):
 		print("[+] Estableciendo valores logica")
 		sdr = logic.SorDeRa_sdr()
+		sdr.stop()
 		sdr.set_VEC(VEC_SZ)
 		sdr.set_aud_rate(audrate)
 		sdr.set_samp_rate(SAMPLERATE)
@@ -965,10 +1043,11 @@ if __name__ == "__main__":
 		sdr.set_bw(bw)
 		sdr.set_dev(-dev)
 		sdr.set_sq(sq)
+		sdr.start()
 
 		print("[+] Arrancando logica")
 		os.spawnl(None, "/usr/bin/pulseaudio -k")
-		sdr.start()
+		#sdr.start()
 
 	print("[+] Generando ventana")
 	sf = pantalla_init()
@@ -1002,6 +1081,7 @@ if __name__ == "__main__":
 		# DOWNER
 		downerf(dwn_sf)
 		pantalla_refresh(sf)
+		#inetcontrol()
 
 	print("[+] Guardando estado")
 	try:
@@ -1018,6 +1098,9 @@ if __name__ == "__main__":
 		print("[-] ERROR CREADNO FICHERO ESTADO")
 
 	print("[+] Saliendo")
+	if SK:
+		SK.shutdown()
+		SK.server_close()
 	if REAL: sdr.stop()
 	pg.quit()
 	sys.exit()

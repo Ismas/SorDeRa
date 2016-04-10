@@ -4,7 +4,7 @@
 # Title: RX logic
 # Author: Ismas
 # Description: A sensible SDR receiver
-# Generated: Tue Apr  5 22:41:37 2016
+# Generated: Sun Apr 10 10:51:22 2016
 ##################################################
 
 from gnuradio import analog
@@ -19,8 +19,8 @@ from gnuradio.fft import window
 from gnuradio.filter import firdes
 from grc_gnuradio import blks2 as grc_blks2
 from optparse import OptionParser
-import fcdproplus
 import math
+import osmosdr
 
 class SorDeRa_sdr(gr.top_block):
 
@@ -43,7 +43,8 @@ class SorDeRa_sdr(gr.top_block):
         self.laj = laj = 0
         self.lai_0 = lai_0 = 0
         self.lai = lai = 0
-        self.freq = freq = 9850000
+        self.freq = freq = 98500000
+        self.device = device = "fcd=0,type=2"
         self.dev = dev = 19000
         self.decimation = decimation = samp_rate/aud_rate
         self.batswitch = batswitch = 0
@@ -53,6 +54,19 @@ class SorDeRa_sdr(gr.top_block):
         ##################################################
         # Blocks
         ##################################################
+        self.rtlsdr_source_0 = osmosdr.source( args="nchan=" + str(1) + " " + device )
+        self.rtlsdr_source_0.set_sample_rate(samp_rate)
+        self.rtlsdr_source_0.set_center_freq(freq, 0)
+        self.rtlsdr_source_0.set_freq_corr(7, 0)
+        self.rtlsdr_source_0.set_dc_offset_mode(0, 0)
+        self.rtlsdr_source_0.set_iq_balance_mode(0, 0)
+        self.rtlsdr_source_0.set_gain_mode(0, 0)
+        self.rtlsdr_source_0.set_gain(2, 0)
+        self.rtlsdr_source_0.set_if_gain(2, 0)
+        self.rtlsdr_source_0.set_bb_gain(2, 0)
+        self.rtlsdr_source_0.set_antenna("", 0)
+        self.rtlsdr_source_0.set_bandwidth(0, 0)
+          
         self.probe_st = blocks.probe_signal_f()
         self.low_pass_filter_0_2 = filter.fir_filter_ccf(decimation, firdes.low_pass(
         	1, samp_rate, bw*(2+(mode==2)+(mode==3)), 500, firdes.WIN_HAMMING, 6.76))
@@ -66,20 +80,15 @@ class SorDeRa_sdr(gr.top_block):
         	1, samp_rate/decimation, bw, 10, firdes.WIN_HAMMING, 6.76))
         self.high_pass_filter_0 = filter.fir_filter_ccf(1, firdes.high_pass(
         	1, samp_rate/decimation, bw, 10, firdes.WIN_HAMMING, 6.76))
+        self.fractional_resampler_xx_0_1 = filter.fractional_resampler_ff(0, (samp_rate/decimation)/48000.0)
         self.fractional_resampler_xx_0_0_0 = filter.fractional_resampler_ff(0, samp_rate/48000.0)
         self.fractional_resampler_xx_0_0 = filter.fractional_resampler_ff(0, samp_rate/48000.0)
         self.fractional_resampler_xx_0 = filter.fractional_resampler_ff(0, (samp_rate/decimation)/48000.0)
         self.fft_vxx_0 = fft.fft_vcc(VEC, True, (window.blackmanharris(1024)), True, 1)
         self.fft_probe = blocks.probe_signal_vf(VEC)
-        self.fcdproplus_fcdproplus_0 = fcdproplus.fcdproplus("",1)
-        self.fcdproplus_fcdproplus_0.set_lna(1)
-        self.fcdproplus_fcdproplus_0.set_mixer_gain(1)
-        self.fcdproplus_fcdproplus_0.set_if_gain(2)
-        self.fcdproplus_fcdproplus_0.set_freq_corr(7)
-        self.fcdproplus_fcdproplus_0.set_freq(freq)
-          
         self.dc_blocker_xx_0 = filter.dc_blocker_ff(64, True)
         self.blocks_wavfile_sink_0 = blocks.wavfile_sink("/tmp/CAPTURE.WAV", 2, 48000, 16)
+        self.blocks_udp_sink_1_0 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 13371, 1472, True)
         self.blocks_udp_sink_1 = blocks.udp_sink(gr.sizeof_float*1, "127.0.0.1", 13370, 1472, True)
         self.blocks_sub_xx_0 = blocks.sub_ff(1)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, VEC)
@@ -89,6 +98,7 @@ class SorDeRa_sdr(gr.top_block):
         self.blocks_multiply_xx_0_0 = blocks.multiply_vff(1)
         self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
         self.blocks_complex_to_real_0_0_0_0 = blocks.complex_to_real(1)
+        self.blocks_complex_to_real_0 = blocks.complex_to_real(1)
         self.blocks_complex_to_mag_squared_0 = blocks.complex_to_mag_squared(VEC)
         self.blocks_add_xx_0 = blocks.add_vff(1)
         self.blocks_add_const_vxx_0 = blocks.add_const_vcc((-complex(lai,laj), ))
@@ -178,8 +188,6 @@ class SorDeRa_sdr(gr.top_block):
         # Connections
         ##################################################
         self.connect((self.blocks_complex_to_mag_squared_0, 0), (self.fft_probe, 0))
-        self.connect((self.fcdproplus_fcdproplus_0, 0), (self.blocks_add_const_vxx_0, 0))
-        self.connect((self.analog_feedforward_agc_cc_0, 0), (self.blks2_selector_0, 0))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_multiply_xx_0, 1))
         self.connect((self.blks2_valve_0_0_0, 0), (self.blocks_multiply_xx_0, 0))
         self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))
@@ -228,22 +236,27 @@ class SorDeRa_sdr(gr.top_block):
         self.connect((self.blks2_selector_0, 3), (self.low_pass_filter_0_0_0, 0))
         self.connect((self.high_pass_filter_0, 0), (self.blks2_selector_0_1_0, 0))
         self.connect((self.low_pass_filter_0_0_0, 0), (self.blks2_selector_0_1_0, 1))
-        self.connect((self.low_pass_filter_0_2, 0), (self.blks2_valve_0_0_0_0, 0))
-        self.connect((self.blks2_valve_0_0_0_0, 0), (self.analog_feedforward_agc_cc_0, 0))
-        self.connect((self.fractional_resampler_xx_0, 0), (self.blocks_udp_sink_1, 0))
         self.connect((self.analog_fm_demod_cf_0, 0), (self.blks2_selector_0_0_1, 1))
         self.connect((self.analog_fm_demod_cf_0, 0), (self.blks2_selector_0_0_1_0, 1))
         self.connect((self.fractional_resampler_xx_0_0_0, 0), (self.blks2_selector_0_0_1_0, 2))
         self.connect((self.fractional_resampler_xx_0_0, 0), (self.blks2_selector_0_0_1, 2))
         self.connect((self.blks2_selector_0_0_0, 0), (self.fractional_resampler_xx_0, 0))
-        self.connect((self.fractional_resampler_xx_0, 0), (self.blks2_selector_0_0_1, 0))
-        self.connect((self.fractional_resampler_xx_0, 0), (self.blks2_selector_0_0_1_0, 0))
         self.connect((self.blks2_selector_0_0_1_0, 0), (self.audio_sink_0, 1))
         self.connect((self.blks2_selector_0_0_1, 0), (self.audio_sink_0, 0))
         self.connect((self.blks2_valve_0, 0), (self.blocks_wavfile_sink_0, 1))
         self.connect((self.blks2_selector_0_0_1_0, 0), (self.blks2_valve_0, 0))
         self.connect((self.blks2_selector_0_0_1, 0), (self.blks2_valve_0_1, 0))
         self.connect((self.blks2_valve_0_1, 0), (self.blocks_wavfile_sink_0, 0))
+        self.connect((self.fractional_resampler_xx_0, 0), (self.blks2_selector_0_0_1_0, 0))
+        self.connect((self.fractional_resampler_xx_0, 0), (self.blks2_selector_0_0_1, 0))
+        self.connect((self.fractional_resampler_xx_0, 0), (self.blocks_udp_sink_1, 0))
+        self.connect((self.fractional_resampler_xx_0_1, 0), (self.blocks_udp_sink_1_0, 0))
+        self.connect((self.blocks_complex_to_real_0, 0), (self.fractional_resampler_xx_0_1, 0))
+        self.connect((self.analog_feedforward_agc_cc_0, 0), (self.blks2_valve_0_0_0_0, 0))
+        self.connect((self.blks2_valve_0_0_0_0, 0), (self.blks2_selector_0, 0))
+        self.connect((self.analog_feedforward_agc_cc_0, 0), (self.blocks_complex_to_real_0, 0))
+        self.connect((self.low_pass_filter_0_2, 0), (self.analog_feedforward_agc_cc_0, 0))
+        self.connect((self.rtlsdr_source_0, 0), (self.blocks_add_const_vxx_0, 0))
 
 
 # QT sink close method reimplementation
@@ -258,16 +271,18 @@ class SorDeRa_sdr(gr.top_block):
         self.low_pass_filter_0_1_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate, 14000, 1000, firdes.WIN_HAMMING, 6.76))
         self.band_pass_filter_0_0.set_taps(firdes.band_pass(120, self.samp_rate, 24000, 52000, 1000, firdes.WIN_HAMMING, 6.76))
         self.band_pass_filter_0_0_0.set_taps(firdes.band_pass(250, self.samp_rate, 18500, 19500, 500, firdes.WIN_HAMMING, 6.76))
-        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0.set_sampling_freq(self.samp_rate)
         self.analog_sig_source_x_0_0_0.set_sampling_freq(self.samp_rate/self.decimation)
         self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
         self.high_pass_filter_0.set_taps(firdes.high_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.low_pass_filter_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
-        self.low_pass_filter_0_2.set_taps(firdes.low_pass(1, self.samp_rate, self.bw*(2+(self.mode==2)+(self.mode==3)), 500, firdes.WIN_HAMMING, 6.76))
-        self.fractional_resampler_xx_0.set_resamp_ratio((self.samp_rate/self.decimation)/48000.0)
         self.fractional_resampler_xx_0_0.set_resamp_ratio(self.samp_rate/48000.0)
         self.fractional_resampler_xx_0_0_0.set_resamp_ratio(self.samp_rate/48000.0)
+        self.fractional_resampler_xx_0.set_resamp_ratio((self.samp_rate/self.decimation)/48000.0)
+        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
+        self.fractional_resampler_xx_0_1.set_resamp_ratio((self.samp_rate/self.decimation)/48000.0)
+        self.low_pass_filter_0_2.set_taps(firdes.low_pass(1, self.samp_rate, self.bw*(2+(self.mode==2)+(self.mode==3)), 500, firdes.WIN_HAMMING, 6.76))
+        self.rtlsdr_source_0.set_sample_rate(self.samp_rate)
 
     def get_mode(self):
         return self.mode
@@ -276,14 +291,14 @@ class SorDeRa_sdr(gr.top_block):
         self.mode = mode
         self.set_sb_pos(((self.bw*self.mode==2)-(self.bw*self.mode==3)))
         self.analog_sig_source_x_0.set_frequency(self.dev+(self.bw*self.mode==2)+(self.bw*self.mode==3))
-        self.blks2_selector_0.set_output_index(int(self.mode))
         self.blks2_valve_0_0_1.set_open(bool(self.mode!=5))
-        self.blks2_valve_0_0.set_open(bool(self.mode!=4))
         self.blks2_selector_0_1_0.set_input_index(int((self.mode==3)))
-        self.low_pass_filter_0_2.set_taps(firdes.low_pass(1, self.samp_rate, self.bw*(2+(self.mode==2)+(self.mode==3)), 500, firdes.WIN_HAMMING, 6.76))
         self.blks2_selector_0_0.set_input_index(int(self.mode))
         self.blks2_selector_0_0_1.set_input_index(int((self.mode>3)+(self.mode>4)))
         self.blks2_selector_0_0_1_0.set_input_index(int((self.mode>3)+(self.mode>4)))
+        self.blks2_selector_0.set_output_index(int(self.mode))
+        self.low_pass_filter_0_2.set_taps(firdes.low_pass(1, self.samp_rate, self.bw*(2+(self.mode==2)+(self.mode==3)), 500, firdes.WIN_HAMMING, 6.76))
+        self.blks2_valve_0_0.set_open(bool(self.mode!=4))
 
     def get_bw(self):
         return self.bw
@@ -291,11 +306,11 @@ class SorDeRa_sdr(gr.top_block):
     def set_bw(self, bw):
         self.bw = bw
         self.set_sb_pos(((self.bw*self.mode==2)-(self.bw*self.mode==3)))
-        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0.set_frequency(self.dev+(self.bw*self.mode==2)+(self.bw*self.mode==3))
         self.analog_sig_source_x_0_0_0.set_frequency(-self.bw)
         self.high_pass_filter_0.set_taps(firdes.high_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.low_pass_filter_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
+        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.low_pass_filter_0_2.set_taps(firdes.low_pass(1, self.samp_rate, self.bw*(2+(self.mode==2)+(self.mode==3)), 500, firdes.WIN_HAMMING, 6.76))
 
     def get_aud_rate(self):
@@ -369,7 +384,13 @@ class SorDeRa_sdr(gr.top_block):
 
     def set_freq(self, freq):
         self.freq = freq
-        self.fcdproplus_fcdproplus_0.set_freq(self.freq)
+        self.rtlsdr_source_0.set_center_freq(self.freq, 0)
+
+    def get_device(self):
+        return self.device
+
+    def set_device(self, device):
+        self.device = device
 
     def get_dev(self):
         return self.dev
@@ -383,12 +404,13 @@ class SorDeRa_sdr(gr.top_block):
 
     def set_decimation(self, decimation):
         self.decimation = decimation
-        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.analog_sig_source_x_0_0_0.set_sampling_freq(self.samp_rate/self.decimation)
         self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate/self.decimation)
         self.high_pass_filter_0.set_taps(firdes.high_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.low_pass_filter_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
         self.fractional_resampler_xx_0.set_resamp_ratio((self.samp_rate/self.decimation)/48000.0)
+        self.low_pass_filter_0_0_0_0.set_taps(firdes.low_pass(1, self.samp_rate/self.decimation, self.bw, 10, firdes.WIN_HAMMING, 6.76))
+        self.fractional_resampler_xx_0_1.set_resamp_ratio((self.samp_rate/self.decimation)/48000.0)
 
     def get_batswitch(self):
         return self.batswitch
