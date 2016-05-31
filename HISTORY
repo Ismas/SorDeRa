@@ -153,3 +153,13 @@
 	CONTROL REMOTO, socket 13379
 	Parametros de hamlib: F,f,m,l,q,c,AOS,LOS. Incluído cambio de F suave. Pendiente M.
 	Icono de enlace
+
+20160413
+	Cambiado el squelch a la ganancia del último filtro. Más rápido, pero hay unfallo de diseño. Al ser el gráfico depende del suavizado por lo que siempre irá algunos cuadros por detrás de la señal.
+
+20160508
+	Bug y optimización: squelch, rec, autosint
+
+20160528
+	Ḿejorada posición de los menus: dos en TOP y uno en DEV
+	Optimizaciones varias

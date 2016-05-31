@@ -25,15 +25,15 @@ REAL = True
 if REAL: import SorDeRa_sdr as logic
 
 # AUTOMATISMOS FFT
-linecancel_enable	= True
+linecancel_enable = True
 maxpts_enable 	= False
 maxdecay_enable = False
 azoom_enable 	= False
 fftfill_enable	= False
 detect_enable	= False
-autosint_enable	= True
+autosint_enable	= False
 intrascan_enable= False
-dostronger		= False
+dostronger		= True
 
 # Automatismos waterfall
 autorange_enable = True
@@ -41,23 +41,25 @@ autorange_enable = True
 # Main Window
 ANCHO		= 1280
 ALTO		= 850
+#ANCHO		= 1680
+#ALTO		= 1050
 MAIN_SIZE	= (ANCHO,ALTO)
 CAPTION     = "SorDeRa SDR  fps: "
 FPS 		= 30
 
 # Cabecera
-TOPANCHO	= 1280
+TOPANCHO	= ANCHO
 TOPALTO		= 50
 TOP_SIZE	= (TOPANCHO,TOPALTO)
 
 # FFT (upper) Window
-FFTANCHO    = 1280
+FFTANCHO    = ANCHO
 FFTALTO     = 500
 FFT_SIZE 	= (FFTANCHO, FFTALTO)
 
 # Waterfall (down) Windows
-DWNANCHO	= 1280
-DWNALTO		= 300
+DWNANCHO	= ANCHO
+DWNALTO		= ALTO-FFTALTO-TOPALTO
 DWN_SIZE	= (DWNANCHO,DWNALTO)
 
 #Colrs y fuentes
@@ -130,7 +132,7 @@ xsq		= FFTALTO/2
 asq		= 0.0
 possq	= (0,0)
 sqstate	= True
-asqstate= True
+asqstate= False
 
 # Mode
 mode = 0
@@ -193,6 +195,7 @@ SKHOST = '0.0.0.0'
 
 # rec
 rec 	= False
+arec	= True
 
 mn 		= None
 retf 	= None
@@ -256,7 +259,9 @@ def FFT_get():
 	global py,pydx,pm
 	global linecancel_enable,lci,lcj,testi,testj,lcs,alc
 	global dostronger, intrascan_enable, tframe, xdev, nobaile
-	global sqstate
+
+	# TODO TODO: LINECANCEL
+
 	# RANGO [-10,5] -> +10 -> [0,15]
 	# 120/15 = 8 -> dBs
 	# FFTALTO/120 = 
@@ -295,15 +300,6 @@ def FFT_get():
 
 	#print(lcj)
 
-	# LINECANCEL
-	if REAL:
-		if linecancel_enable:
-			sdr.set_lai(-0.0032)
-			sdr.set_laj(-0.0034)
-		else:
-			sdr.set_lai(0)
-			sdr.set_laj(0)
-
 	# ADQUISICION DE DATOS
 	if (REAL):
 		i = 0
@@ -320,8 +316,8 @@ def FFT_get():
 	else:	
 		for x in range(VEC_SZ):	py[pydx][x] = random.random() 
 
-	# AUTOSINT - DOSTRONGER			
-	if dostronger and tframe > fft_media:	# Sintoniza al punto más alto cuando el FFT se ha estabilizado
+	# AUTOSINT - DOSTRONGER
+	if dostronger and tframe > fft_media/2:	# Sintoniza al punto más alto cuando el FFT se ha estabilizado
 		tmax = -3.0 # Un nivel minimo para sintonizar, debería ser -infinito
 		txd  = 0
 		for i in range(VEC_SZ):
@@ -336,14 +332,13 @@ def FFT_get():
 	# INTRASCAN 
 	nobaile = False
 	if intrascan_enable: dostronger = (not dostronger and sqstate)
-	if intrascan_enable and dostronger: nobaile = True
-		#dostronger = (intrascan_enable and not dostronger)
+	if intrascan_enable and dostronger: nobaile = intrascan_enable
 
 	pydx = (pydx+1) % fft_media					# Siguiente para media
 
 def FFT_frame(sf):
 	global py,pydx,pm,fft_media
-	global sqstate, asqstate
+	global sqstate, asqstate, rec, arec
 	global pts,maxpts,mpts
 	global mindB,maxdB
 	global azoom,azoom_enable,MAXZOOM,base,tope,YTOP
@@ -402,9 +397,13 @@ def FFT_frame(sf):
 				if maxdecay_enable: maxpts[x] += 1
 			mpts += [(x,maxpts[x]+1+base)]			# compongo vector max
 
-	# Activa squelch con una histéresis de un frame 
-	sdr.set_visualsq(asqstate)
+	# Activa squelch y rec
+	# Graba si la grabación está activada
+	if REAL and (sqstate != asqstate or arec != rec): 
+		sdr.set_rec(not (rec and not sqstate))	#Activa REC. como es una valvula va al reves
+		sdr.set_visualsq(not sqstate)
 	asqstate = sqstate
+	arec = rec
 
 	# Caluclo base
 	if mi < FFTALTO-30:	base += 1
@@ -486,9 +485,9 @@ def calc_dev():
 	sfq = format(fq,'010d')
 	sfq = sfq[:-9]+'.'+sfq[-9:-6]+'.'+sfq[-6:-3]+','+sfq[-3:]
 	sfq = sfq.lstrip('0.')
-	if autosint_enable: sfq = "[] " + sfq  		# Pinta algo de automático si está en autosint
+	if autosint_enable: sfq = "("+ sfq + ")"  		# Pinta algo de automático si está en autosint
 	fqlabel1 = ftdev1.render(sfq[:len(sfq)-4], 0, DEVCOLORMHZ,BGCOLOR) # pinta dev text
-	fqlabel2 = ftdev2.render(sfq[len(sfq)-3:], 0, DEVCOLORHZ,BGCOLOR)
+	fqlabel2 = ftdev2.render(sfq[len(sfq)-4:], 0, DEVCOLORHZ,BGCOLOR)
 
 	t = 0 											# AÑADO DESFASE A LA DESVIACION SOLO PARA USB y LSB
 	if tmode=="USB" or tmode=="LSB": t = bw;		# APLICA SOLO A LA LOGICA; NO A LOS VALORES
@@ -521,7 +520,6 @@ def calc_bw():
 def calc_freq(posx,posy):
 	global numx
 	global sdr
-	global tframe
 	global maxpts
 	global autosint_enable, dostronger
 	global birds
@@ -539,7 +537,9 @@ def calc_freq(posx,posy):
 
 def calc_freq_f(freq):
 	global fqc
-	global refreshfq
+	global refreshfq, dostronger, autosint
+	global tframe
+	global birds
 
 	fqc = freq
 	if fqc > MAXF : fqc = MAXF 	# Limites
@@ -641,11 +641,10 @@ def demod_menu_response():
 		return
 	if opt.value == 2:				# AutoSINT
 		autosint_enable = not autosint_enable
-		if autosint_enable: dostronger = True
+		dostronger = autosint_enable
 	if opt.value == 3:				# grabar
 		rec = not rec 				# pinta el punto en fft_frame
 		if not rec: pgd.filled_circle(top_sf, smx+sml+TOPALTO/2, TOPALTO/2, TOPALTO/4, BGCOLOR)	#Borra botón rojo izquierda smeter
-		if REAL: sdr.set_rec(not rec)	#Activa REC. como es una valvula va al reves
 
 	mn = None
 
@@ -668,10 +667,15 @@ def attend_mouse(sf):
 			continue
 		if ( ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 1) or 
 			(evt.type == pg.MOUSEMOTION and evt.buttons[0] == 1) ) :										# boton izquierdo
-			if TOPANCHO-evt.pos[0] < 48  and evt.pos[1] < 24 :		# MENU PRINCIPAL
-				main_menu()
-				retf = main_menu_response														
-				continue
+			if evt.pos[1] < 24:
+				if TOPANCHO-evt.pos[0]-27 < 14:		# MENU PRINCIPAL
+					retf = main_menu_response														
+					main_menu()
+					continue
+				if TOPANCHO-evt.pos[0]-52 < 14:		# MENU FFT
+					retf = fft_menu_response				
+					fft_menu()
+					continue
 			if m.fabs(evt.pos[0] - possq[0]) < 50  and m.fabs(evt.pos[1]-possq[1]-50) < 50 :	# Si xestá en los ´ultimos 20 pixels y a la altura del
 				calc_sq(evt.pos[1]-base)															# squelch. 
 				continue
@@ -702,10 +706,6 @@ def attend_mouse(sf):
 			if evt.pos[1] > TOPALTO+FFTALTO:
 				retf = waterfall_response				# Sino, menu del waterfall
 				waterfall_menu()
-				continue
-			if evt.pos[1] < TOPALTO+BWY:
-				retf = fft_menu_response					# Sino, menu del FFT
-				fft_menu()
 				continue
 		if  ((evt.type == pg.MOUSEBUTTONDOWN or evt.type == pg.MOUSEBUTTONUP) and  evt.button == 4): # boton rueda de enmedio
 			xdev += minipaso
@@ -745,6 +745,7 @@ def fft_menu(refresh = False):
 	mn.cx 		= pg.mouse.get_pos()[0]
 	mn.cy 		= TOPALTO+250
 	if refresh: mn.frame = 48 # no scroll
+	if mn.cx + mn.width > FFTANCHO: mn.cx = FFTANCHO - mn.width
 	mn.init(sf,b,(0,0,0),"FFT Menu")
 
 def fft_menu_response():
@@ -758,6 +759,16 @@ def fft_menu_response():
 	if opt.value == 5:	detect_enable 	= not detect_enable
 	if opt.value == 6:	azoom_enable 	= not azoom_enable
 	if opt.value == 7:	intrascan_enable= not intrascan_enable
+
+	# LINECANCEL
+	# TODO: Esto hay que hacerlo una vez, no cada frame
+	if REAL:
+		if linecancel_enable:
+			sdr.set_lai(-0.0032)
+			sdr.set_laj(-0.0034)
+		else:
+			sdr.set_lai(0)
+			sdr.set_laj(0)
 
 	if opt.value == 0:	mn = opt = None
 	else:
@@ -806,6 +817,7 @@ def main_menu():
 	mn.width = 300
 	mn.cx = FFTANCHO - 150
 	mn.header = "Main"
+	if mn.cx + mn.width > FFTANCHO: mn.cx = FFTANCHO - mn.width
 	mn.init(sf,b,(0,0,0),"Menu")
 
 def main_menu_response():
@@ -859,9 +871,12 @@ def pantalla_init():
 	# Pinta signo de BIRDIE
 	fbd = ftdev1.render('X',1,(250,150,0),BGCOLOR)
 
-	# pinta boton menu
+	# pinta boton menu principal
 	menusf = pg.image.load(MENUIMG)
 	top_sf.blit(menusf,(TOPANCHO-50,0))
+
+	# pinta boton menu FFT
+	top_sf.blit(menusf,(TOPANCHO-75,0))
 
 	# icono stereo
 	stereosf = pg.image.load(STEREOIMG)
@@ -885,7 +900,7 @@ def pantalla_refresh(sf):
 	global fft_sf,top_sf
 	global sq,xsq,asq,smval,smvaladj,possq,sqstate
 	global frame, count
-	global menusf,stereosf
+	global menusf, stereosf
 
 	a = FFTANCHO/2 										# media pantalla
 	pleft = fqlabel1.get_size()[0]/2 + fqlabel2.get_size()[0]/2 
@@ -1067,6 +1082,9 @@ if __name__ == "__main__":
 	opt = butonify.buton()
 	opt.init(sf,{"text":tmode,"value":mode})
 	demod_mode_response()
+	if linecancel_enable:
+		sdr.set_lai(-0.0032)
+		sdr.set_laj(-0.0034)
 
 	print("[+] Entrando a bucle principal")
 	refreshfq = True

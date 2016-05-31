@@ -15,6 +15,7 @@ import numpy as np
 import SorDeRa_sdr as logic
 
 PORT		= "/dev/ttyUSB2"
+BAUD 		= 19200
 
 RES			= 5
 VEC_SZ		= 1280
@@ -32,10 +33,10 @@ py			= []
 
 #FMIN		= 10e6
 #FMAX		= 200e6
-FMIN		= 40e6
-FMAX		= 70e6
+FMIN		= 70e6
+FMAX		= 130e6
 STEP		= (FMAX-FMIN)/VEC_SZ
-FPS			= 30
+FPS			= 0
 
 t 			= 0.0
 SALIDA 		= False
@@ -116,6 +117,10 @@ if __name__ == "__main__":
 	print("*** BUSCANDO GENERADOR RF **")
 
 	t = PORT
+
+	# Puerto a 19200: stty -F /dev/ttyUSB2 speed 19200
+	#os.execvp("stty",  ("-F "+t ," speed "+str(BAUD)))
+
 	PORT = ""
 	f = open(t,"rw+")
 	f.write("A\n")
